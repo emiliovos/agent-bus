@@ -5,3 +5,7 @@ data/
 .env
 .DS_Store
 claw3d/
+.venv/
+*.egg-info/
+__pycache__/
+.pytest_cache/
