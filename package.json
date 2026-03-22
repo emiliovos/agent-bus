@@ -11,7 +11,8 @@
     "build": "tsc",
     "build:claw3d": "cd claw3d && npm run build",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "bash scripts/e2e-smoke-test.sh"
   },
   "keywords": ["agent-bus", "websocket", "event-hub", "claw3d"],
   "author": "",
