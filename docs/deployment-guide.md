@@ -1,6 +1,6 @@
 # Deployment Guide
 
-**Phase:** 6 Complete — Cloudflare Tunnel deployed
+**Phase:** 7 Complete — OpenClaw gateway deployed + CF tunnel
 **Date:** 2026-03-22
 
 ---
@@ -21,14 +21,16 @@ Hub on `http://localhost:4000`, Claw3D on `http://localhost:3000`.
 ```bash
 npm install
 npm run build
-npm start          # Start hub only
+npm start          # Start hub (:4000)
 
 # In separate terminal
-npm run dev:adapter    # Start Claw3D adapter
+npm run dev:gateway    # Start gateway (:18789) — PHASE 7
 
-# Setup Cloudflare Tunnel
+# Setup Cloudflare Tunnel (optional, for remote access)
 bash scripts/setup-cloudflare-tunnel.sh
 ```
+
+**Note:** The gateway is the new standard. The legacy adapter is deprecated but still available for compatibility.
 
 ---
 
@@ -42,13 +44,20 @@ bash scripts/setup-cloudflare-tunnel.sh
 | `LOG_DIR` | data | JSONL log directory (created if missing) |
 | `NODE_ENV` | development | Set to `production` for prod |
 
-### Adapter (src/adapter/index.ts)
+### Gateway (src/gateway/index.ts) — Phase 7
+
+| Variable | Default | Required | Purpose |
+|----------|---------|----------|---------|
+| `PORT` | 18789 | No | Gateway WebSocket port |
+| `HUB_URL` | ws://localhost:4000 | No | Hub WebSocket endpoint (consumer) |
+
+### Adapter (src/adapter/index.ts) — Deprecated, use gateway instead
 
 | Variable | Default | Required | Purpose |
 |----------|---------|----------|---------|
 | `HUB_URL` | http://localhost:4000 | No | Hub WebSocket endpoint |
 | `CLAW3D_URL` | http://localhost:3000 | No | Claw3D server URL |
-| `CLAW3D_TOKEN` | — | Yes | OpenClaw Gateway token |
+| `CLAW3D_TOKEN` | — | Yes | OpenClaw Gateway token (not needed for native gateway) |
 
 ### Claude Code Hooks (Phase 3)
 
@@ -184,13 +193,14 @@ sed -i 's|^CF_ACCESS_SERVICE_TOKEN=|CF_ACCESS_SERVICE_TOKEN="<token>"|' \
 
 | Script | Purpose |
 |--------|---------|
-| `npm run dev` | Start hub only (localhost:4000) |
-| `npm run dev:all` | Start hub + Claw3D + adapter |
-| `npm run dev:adapter` | Start adapter only |
-| `npm run dev:claw3d` | Start Claw3D only |
+| `npm run dev` | Start hub only (:4000) |
+| `npm run dev:gateway` | Start gateway only (:18789) — Phase 7 |
+| `npm run dev:all` | Start hub + Claw3D + gateway |
+| `npm run dev:adapter` | Start legacy adapter (deprecated) |
+| `npm run dev:claw3d` | Start Claw3D only (:3000) |
 | `npm run build` | Compile TypeScript → dist/ |
 | `npm start` | Run compiled hub (production) |
-| `npm test` | Run Vitest suite (70 tests) |
+| `npm test` | Run Vitest suite (98 tests) |
 | `npm run test:e2e` | Run E2E smoke test |
 
 ---
@@ -199,13 +209,14 @@ sed -i 's|^CF_ACCESS_SERVICE_TOKEN=|CF_ACCESS_SERVICE_TOKEN="<token>"|' \
 
 - [ ] Node.js 18+ installed
 - [ ] Hub PORT configured (default 4000)
+- [ ] Gateway PORT configured (default 18789)
 - [ ] LOG_DIR exists with write permissions
-- [ ] Adapter CLAW3D_TOKEN set
-- [ ] CF Tunnel credentials installed
-- [ ] LaunchAgent configured for auto-start
-- [ ] CF Access service token distributed
-- [ ] Hook scripts updated with remote HUB_URL
-- [ ] Firewall allows :4000 and :3000 (or CF tunnel only)
+- [ ] Gateway started (npm run dev:gateway) — Phase 7
+- [ ] CF Tunnel credentials installed (optional, for remote access)
+- [ ] LaunchAgent configured for auto-start (optional)
+- [ ] CF Access service token distributed (optional)
+- [ ] Hook scripts updated with remote HUB_URL (if using CF tunnel)
+- [ ] Firewall allows :4000 and :18789 (or CF tunnel only)
 - [ ] JSONL logs backed up periodically
 
 ---

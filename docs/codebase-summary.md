@@ -1,6 +1,6 @@
 # Codebase Summary
 
-**Status:** Phase 6 Complete — All phases delivered. Hub, adapter, hooks, CLI, E2E tests, and Cloudflare Tunnel deployed.
+**Status:** Phase 7 Complete — All phases delivered. Hub, adapter, hooks, CLI, E2E tests, Cloudflare Tunnel, and OpenClaw-compatible gateway deployed.
 
 **Last Updated:** 2026-03-22
 
@@ -22,15 +22,20 @@ agent-bus/
 │   ├── src/                       ← React components, API routes
 │   └── server/                    ← Node.js WebSocket gateway
 ├── src/
-│   ├── index.ts                   ← Entry point, graceful shutdown
+│   ├── index.ts                   ← Hub entry point, graceful shutdown
 │   ├── types/
-│   │   └── agent-event.ts         ← Event schema + validation
+│   │   └── agent-event.ts         ← Event schema + validation (48 LOC)
 │   ├── hub/
-│   │   └── event-hub.ts           ← WebSocket + HTTP server (163 LOC)
-│   └── adapter/                   ← Claw3D adapter (Phase 2 — IMPLEMENTED)
-│       ├── claw3d-adapter.ts      ← Dual WebSocket bridge (120 LOC)
-│       ├── event-translator.ts    ← AgentEvent → Claw3D frame mapper (110 LOC)
-│       └── index.ts               ← Standalone adapter entry point (24 LOC)
+│   │   └── event-hub.ts           ← WebSocket + HTTP server (166 LOC)
+│   ├── adapter/                   ← Claw3D adapter (Phase 2 — IMPLEMENTED)
+│   │   ├── claw3d-adapter.ts      ← Dual WebSocket bridge (83 LOC)
+│   │   ├── event-translator.ts    ← AgentEvent → Claw3D frame mapper (119 LOC)
+│   │   └── index.ts               ← Adapter entry point (24 LOC)
+│   └── gateway/                   ← OpenClaw gateway (Phase 7 — NEW)
+│       ├── agent-bus-gateway.ts   ← WS server :18789 (169 LOC)
+│       ├── protocol-handler.ts    ← 10 OpenClaw RPC methods (162 LOC)
+│       ├── agent-registry.ts      ← Agent/session state (132 LOC)
+│       └── index.ts               ← Gateway entry point (18 LOC)
 ├── tests/
 │   ├── hub.test.ts                ← 31 passing tests
 │   └── adapter.test.ts            ← 39 passing tests (Phase 2)
@@ -88,6 +93,11 @@ agent-bus/
 | `scripts/hook-session-event.sh` | ✓ Complete (Phase 6) | 28 | Session lifecycle hook with CF Access auth |
 | `scripts/cloudflared-config-template.yml` | ✓ Complete (Phase 6) | — | Cloudflare tunnel config template |
 | **Phase 6 Cloudflare Tunnel** | ✓ Complete | — | Remote access via CF tunnel + LaunchAgent auto-start |
+| **Phase 7 OpenClaw Gateway** | ✓ Complete | 481 LOC | Adapter replaced by native OpenClaw-compatible gateway |
+| `src/gateway/agent-bus-gateway.ts` | ✓ Complete (Phase 7) | 169 | WS server :18789, hub consumer, event forwarding |
+| `src/gateway/protocol-handler.ts` | ✓ Complete (Phase 7) | 162 | 10 RPC methods (connect, agents.list, config.get, etc.) |
+| `src/gateway/agent-registry.ts` | ✓ Complete (Phase 7) | 132 | In-memory agent/session state, ring buffer messages |
+| `tests/gateway.test.ts` | ✓ Complete (Phase 7) | 294 | 28 gateway tests (RPC, translation, presence) |
 
 ## Core Components (Phase 1)
 
@@ -224,6 +234,44 @@ npm run test:e2e
 ```
 
 All 7 checks pass with clean hub shutdown.
+
+## Core Components (Phase 7 — OpenClaw Gateway)
+
+### Gateway Architecture (`src/gateway/`, 481 LOC total)
+
+**agent-bus-gateway.ts (169 LOC):** WebSocket server on :18789 (OpenClaw protocol)
+- Consumes hub WS stream at startup
+- Dual-connects: hub (:4000) as consumer, clients (:18789) as producers
+- Broadcasts translated Claw3D frames to all connected browser clients
+- Broadcasts presence events (agent list) to all clients
+- Tick keepalive every 30s to maintain connections
+- Auto-reconnects to hub on disconnect (configurable 3s delay)
+
+**protocol-handler.ts (162 LOC):** OpenClaw RPC protocol
+- `connect`: Initial handshake, returns hello-ok + agent snapshot
+- `health`: Simple health check (ok: true)
+- `agents.list`: Active agents + identities
+- `config.get`: Full config (agents list for Claw3D hydration)
+- `sessions.list`: Filter by agentId or search, Claw3D UI pagination
+- `sessions.preview`: Batch preview (keys) or single session messages
+- `status`: Agent status (active/idle) + lastSeen
+- `exec.approvals.get`: Returns empty (no approval queue)
+- `chat.send`: Logs but doesn't route (read-only gateway)
+- `chat.abort`: Logs but doesn't abort (read-only gateway)
+
+**agent-registry.ts (132 LOC):** In-memory state machine
+- Auto-registers agents on `session_start`, `tool_use`, or `task_complete`
+- Tracks agent status (active/idle), identity (name, emoji, theme)
+- Stores chat messages in ring buffer (max 100 per session)
+- Derives deterministic runId and sessionKey from agent+project
+- Presence versioning for Claw3D state sync
+
+### Phase 7 Benefits
+- **No adapter process needed** — gateway consumes hub directly
+- **OpenClaw-compatible protocol** — Claw3D browser clients unchanged
+- **Real-time state sync** — presence and chat buffer updates broadcast
+- **Working animation latch** — tool_use events trigger 5s animation
+- **Backward compatible** — adapter still works for legacy setups
 
 ## Core Components (Phase 6 — Cloudflare Tunnel + Remote Access)
 

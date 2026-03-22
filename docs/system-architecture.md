@@ -1,6 +1,6 @@
 # System Architecture
 
-**Date:** 2026-03-22 (Phase 6 Complete — Cloudflare Tunnel Deployed)
+**Date:** 2026-03-22 (Phase 7 Complete — OpenClaw Gateway Deployed)
 
 ---
 
@@ -33,13 +33,13 @@
 │  Consumers                                                │
 │                                                           │
 │  ┌──────────────────────────────────────────────────────┐ │
-│  │ Claw3D Adapter (src/adapter/) [PHASE 2]             │ │
-│  │ Dual WS bridge: hub ↔ Claw3D                        │ │
-│  │ Translates events, manages auth                     │ │
+│  │ OpenClaw Gateway (src/gateway/) [PHASE 7]           │ │
+│  │ Native WS server :18789, hub consumer               │ │
+│  │ RPC protocol: 10 methods, agent registry            │ │
 │  └──────────────────────────┬───────────────────────────┘ │
-│                             │ OpenClaw frames            │
+│                             │ OpenClaw frames + presence │
 │                             ▼                            │
-│  Claw3D 3D Office ──→ ws://localhost:3000/api/gateway/ws  │
+│  Claw3D 3D Office ──→ ws://localhost:18789               │
 │  Dashboard ──────────→ custom UI                         │
 │                                                          │
 │  ┌──────────────────────────────────────────────────────┐ │
@@ -94,39 +94,43 @@ interface AgentEvent {
 function isValidEvent(data: unknown): data is AgentEvent
 ```
 
-### 3. Claw3D Adapter (`src/adapter/`) — PHASE 2 COMPLETE
+### 3. OpenClaw Gateway (`src/gateway/`) — PHASE 7 COMPLETE
 
-Bridges agent-bus hub events to Claw3D's WebSocket protocol. Three modules:
+Native OpenClaw-compatible WebSocket gateway on :18789. Replaces legacy adapter with integrated protocol handler and state registry. Three modules:
 
-**event-translator.ts (110 LOC):**
-- Derives deterministic runId (SHA256 hash of agent:project, 12-char prefix)
-- Formats sessionKey as `agent:<project>-<agent>:main`
-- Maps AgentEvent → Claw3dEventFrame:
-  - `session_start` → agent lifecycle event (phase: start)
-  - `tool_use` → chat event (state: delta, message: tool + file)
-  - `task_complete` → chat event (state: final, message)
-  - `session_end` → agent lifecycle event (phase: end)
-  - `heartbeat` → filtered (returns null)
+**agent-bus-gateway.ts (169 LOC):**
+- WebSocket server on :18789 listening for Claw3D browser clients
+- Connects to hub (:4000) as consumer at startup
+- Broadcasts hub events translated to OpenClaw frames
+- Broadcasts presence updates (agent list) on registry changes
+- Tick keepalive event every 30s for connection management
+- Auto-reconnect to hub on disconnect (3s delay, configurable)
+- Graceful shutdown: closes all client connections
 
-**claw3d-adapter.ts (120 LOC):**
-- Dual WebSocket bridge:
-  - Connects to hub (ws://localhost:4000)
-  - Connects to Claw3D (ws://localhost:3000/api/gateway/ws)
-- Auth flow:
-  1. On Claw3D open → send connect frame with OpenClaw token
-  2. Wait for response { type: 'res', ok: true } to confirm authenticated
-  3. Start forwarding events (only when claw3dConnected=true)
-- Resilience:
-  - Auto-reconnect on hub disconnect (3s delay, configurable)
-  - Auto-reconnect on Claw3D disconnect (3s delay)
-  - Input validation via isValidEvent type guard
-- Error handling: Logs errors, ignores non-JSON frames from Claw3D
+**protocol-handler.ts (162 LOC):**
+- 10 OpenClaw RPC methods (connect, health, agents.list, config.get, sessions.list, sessions.preview, status, exec.approvals.get, chat.send, chat.abort)
+- `connect`: Handshake response with server version, features, agent snapshot
+- `agents.list`: Returns active agents with identity (name, emoji, theme)
+- `config.get`: Full config object for Claw3D hydration
+- `sessions.list`: Filter by agentId or search, pagination support
+- `sessions.preview`: Batch preview (keys) or single session chat history
+- `status`: Agent status (active/idle) + lastSeen timestamps
+- `chat.send`, `chat.abort`: Logged but not routed (read-only gateway)
+- Error responses: standard RPC error format
 
-**index.ts (24 LOC):**
-- Reads env: HUB_URL, CLAW3D_URL, CLAW3D_TOKEN (required)
-- Instantiates adapter with config
+**agent-registry.ts (132 LOC):**
+- In-memory agent and session state machine
+- Auto-registers agents on `session_start`, `tool_use`, or `task_complete`
+- Agent fields: id, identity (name/emoji/theme), project, status, runId, sessionKey, lastSeen
+- Session fields: sessionKey, agentId, project, startedAt, messages ring buffer
+- Chat messages stored with role, content, timestamp (max 100 per session)
+- Deterministic runId/sessionKey derived from agent+project
+- Presence versioning for Claw3D state sync
+
+**index.ts (18 LOC):**
+- Reads env: PORT (default 18789), HUB_URL (default ws://localhost:4000)
+- Instantiates gateway with config
 - SIGINT/SIGTERM handlers for clean shutdown
-- Exits with error if token missing
 
 ### 4. Claw3D Integration (`claw3d/`) — EMBEDDED
 
@@ -223,7 +227,7 @@ Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw frames (now 
 
 ---
 
-## Network Topology (Phase 6 — Cloudflare Tunnel Deployed)
+## Network Topology (Phase 7 — OpenClaw Gateway Live)
 
 ```
 Remote VPS / Windows PC
@@ -241,18 +245,20 @@ Mac Mini (192.168.101.86)
 │   ├── GET /health       (HTTP)         ← Hub statistics
 │   └── /                 (WebSocket)    ← Broadcast to consumers
 │
-├── Claw3D Adapter        (src/adapter/) ← Dual WS bridge
+├── OpenClaw Gateway      :18789         ← PHASE 7 NEW (replaces adapter)
 │   ├── ◄─ ws://localhost:4000          ← Consume hub events
-│   ├── ─► ws://localhost:3000/api/gateway/ws ← Send Claw3D frames
+│   ├── ─► :18789 WebSocket             ← Claw3D browser clients
+│   ├── AgentRegistry in-memory state   ← Agent/session/chat buffer
+│   ├── 10 RPC methods                  ← OpenClaw protocol
+│   ├── Tick keepalive 30s               ← Connection management
 │   └── Auto-reconnect on disconnect (3s)
 │
 ├── Claw3D Next.js App    :3000          ← 3D visualization
-│   ├── /api/gateway/ws   (WebSocket)    ← OpenClaw protocol endpoint
-│   └── /office           (UI)           ← 3D office environment
-│   └── Cloudflare Tunnel :3000 ↔ claw3d.boxlab.cloud
-│
-├── OpenClaw Gateway      :18789         ← Passive mode ($0 tokens)
-│   └── heartbeat ping    (999h)         ← Keep-alive
+│   ├── Browser connects to :18789 (gateway, not :3000 anymore)
+│   ├── Renders agents based on presence events
+│   ├── Displays chat history from ring buffer
+│   └── Working animation latch on tool_use
+│   └── Cloudflare Tunnel :3000 ↔ claw3d.boxlab.cloud (visual only)
 │
 └── JSONL Log             data/          ← Event persistence (local filesystem)
     └── events.jsonl                     ← Append-only event stream
@@ -262,8 +268,8 @@ Authentication
 │   └── Bound to specific project/policy
 │   └── Rotates via CF dashboard
 │
-└── OpenClaw Token (embedded in adapter)
-    └── 999-hour passive heartbeat ($0 cost)
+└── No OpenClaw token needed (gateway is native OpenClaw-compatible)
+    └── $0 cost (pure data routing)
 ```
 
 ---

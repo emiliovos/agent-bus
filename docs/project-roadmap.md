@@ -1,6 +1,6 @@
 # Project Roadmap
 
-**Status:** All 6 phases complete. Project fully operational with remote access.
+**Status:** All 7 phases complete. Project fully operational with native OpenClaw gateway + remote access.
 
 **Last Updated:** 2026-03-22
 
@@ -130,6 +130,29 @@
 
 ---
 
+### Phase 7: OpenClaw Gateway ✓ Complete
+
+**Goal:** Replace legacy adapter with native OpenClaw-compatible gateway
+
+**Deliverables:**
+- [x] AgentRegistry for in-memory agent/session state
+- [x] ProtocolHandler with 10 OpenClaw RPC methods
+- [x] WebSocket server on :18789 (native OpenClaw protocol)
+- [x] Real-time presence broadcasting (agent list updates)
+- [x] Chat message ring buffer (max 100 per session)
+- [x] Working animation latch on tool_use events (5s)
+- [x] 28 unit tests (RPC, registry, translation, presence)
+- [x] Tick keepalive every 30s
+- [x] Auto-reconnect resilience to hub (3s delay)
+- [x] No separate adapter process needed
+
+**Completion Date:** 2026-03-22
+**Status:** DEPLOYED
+
+**Impact:** Claw3D browser clients connect directly to gateway (:18789), eliminating legacy adapter complexity. Gateway native to OpenClaw protocol.
+
+---
+
 ## Feature Status Matrix
 
 | Feature | Phase | Status | Test Coverage |
@@ -138,7 +161,7 @@
 | WebSocket broadcast | 1 | ✓ | 31 tests |
 | JSONL persistence | 1 | ✓ | 31 tests |
 | Event schema validation | 1 | ✓ | 31 tests |
-| Claw3D adapter | 2 | ✓ | 39 tests |
+| Claw3D adapter | 2 | ✓ | 39 tests (deprecated) |
 | Event translation | 2 | ✓ | 39 tests |
 | Auto-reconnect | 2 | ✓ | 39 tests |
 | Claude Code hooks | 3 | ✓ | Manual |
@@ -148,6 +171,10 @@
 | CF Tunnel | 6 | ✓ | Manual |
 | CF Access auth | 6 | ✓ | Manual |
 | LaunchAgent | 6 | ✓ | Manual |
+| OpenClaw Gateway | 7 | ✓ | 28 tests |
+| Agent Registry | 7 | ✓ | 28 tests |
+| RPC Protocol Handler | 7 | ✓ | 28 tests |
+| Presence Broadcasting | 7 | ✓ | 28 tests |
 
 ---
 
@@ -156,10 +183,11 @@
 | Component | Framework | Count | Status |
 |-----------|-----------|-------|--------|
 | Hub (src/hub/) | Vitest | 31 | ✓ All Pass |
-| Adapter (src/adapter/) | Vitest | 39 | ✓ All Pass |
+| Adapter (src/adapter/) | Vitest | 39 | ✓ All Pass (deprecated) |
+| Gateway (src/gateway/) | Vitest | 28 | ✓ All Pass (Phase 7) |
 | CLI (cli-anything/) | pytest | 16 | ✓ All Pass |
 | E2E Pipeline | Bash | 7 | ✓ All Pass |
-| **Total** | **Mixed** | **93** | **✓ 100%** |
+| **Total** | **Mixed** | **121** | **✓ 100%** |
 
 ---
 
@@ -281,6 +309,15 @@
 - [x] Hooks updated with CF headers
 - [x] Deployment guide complete
 
+### Phase 7 ✓
+- [x] AgentRegistry in-memory state machine
+- [x] ProtocolHandler with 10 OpenClaw RPC methods
+- [x] OpenClaw-compatible gateway on :18789
+- [x] Real-time presence broadcasting
+- [x] Chat message ring buffer (max 100)
+- [x] 28 gateway tests passing
+- [x] Live deployment verified
+
 ---
 
 ## Release Schedule
@@ -293,6 +330,7 @@
 | Phase 4 | 2026-03-21 | 2026-03-21 | ✓ Released |
 | Phase 5 | 2026-03-21 | 2026-03-21 | ✓ Released |
 | Phase 6 | 2026-03-22 | 2026-03-22 | ✓ Released |
+| Phase 7 | 2026-03-22 | 2026-03-22 | ✓ Released |
 
 ---
 

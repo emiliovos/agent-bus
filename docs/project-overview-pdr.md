@@ -80,6 +80,17 @@ Claude Code sessions are invisible to external visualization tools. Claw3D only 
 - [x] Hooks updated with CF Access headers
 - [x] Remote access enabled 24/7 via CF tunnel
 
+**Phase 7 (Complete) — OpenClaw Gateway Replacement**
+- [x] Native OpenClaw-compatible gateway on :18789
+- [x] AgentRegistry for in-memory state (agents, sessions, chat history)
+- [x] ProtocolHandler with 10 RPC methods (connect, agents.list, config.get, etc.)
+- [x] Real-time presence broadcasting (agent list updates)
+- [x] Chat message ring buffer (max 100 per session)
+- [x] 28 gateway tests passing (RPC, translation, presence)
+- [x] No adapter process needed — gateway replaces legacy adapter
+- [x] Working animation latch triggers on tool_use (5s)
+- [x] Live deployment verified on Mac Mini + CF tunnel
+
 **Future (Out of Scope v1)**
 - [ ] Event replay with speed control
 - [ ] Multi-producer load testing

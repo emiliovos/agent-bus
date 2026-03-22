@@ -24,18 +24,24 @@
 
 ```
 src/
-├── index.ts           ← Entry point (server startup + shutdown)
+├── index.ts           ← Hub entry point (server startup + shutdown)
 ├── hub/
-│   └── event-hub.ts   ← WebSocket + HTTP event hub (163 LOC)
-├── adapter/           ← Claw3D protocol translator (Phase 2 — IMPLEMENTED)
-│   ├── claw3d-adapter.ts    ← Dual WS bridge (120 LOC)
-│   ├── event-translator.ts  ← Event mapper (110 LOC)
+│   └── event-hub.ts   ← WebSocket + HTTP event hub (166 LOC)
+├── adapter/           ← Legacy adapter (Phase 2, replaced by gateway)
+│   ├── claw3d-adapter.ts    ← Dual WS bridge (83 LOC)
+│   ├── event-translator.ts  ← Event mapper (119 LOC)
 │   └── index.ts             ← Adapter bootstrap (24 LOC)
+├── gateway/           ← OpenClaw gateway (Phase 7 — NEW)
+│   ├── agent-bus-gateway.ts ← WS server :18789 (169 LOC)
+│   ├── protocol-handler.ts  ← 10 RPC methods (162 LOC)
+│   ├── agent-registry.ts    ← Agent/session state (132 LOC)
+│   └── index.ts             ← Gateway bootstrap (18 LOC)
 └── types/
-    └── agent-event.ts ← Shared event schema + validation (49 LOC)
+    └── agent-event.ts ← Shared event schema + validation (48 LOC)
 tests/
 ├── hub.test.ts        ← Hub tests (31 passing)
-└── adapter.test.ts    ← Adapter tests (39 passing, Phase 2)
+├── adapter.test.ts    ← Adapter tests (39 passing)
+└── gateway.test.ts    ← Gateway tests (28 passing, Phase 7)
 claw3d/               ← Embedded Claw3D visualization
 ├── package.json
 ├── src/              ← Next.js components + API routes
@@ -55,11 +61,12 @@ scripts/
 ## Development Scripts
 
 ```bash
-npm run dev              # Start agent-bus hub only (:4000)
-npm run dev:adapter      # Start Claw3D adapter (requires HUB_URL, CLAW3D_URL, CLAW3D_TOKEN)
-npm run dev:all         # Start hub + Claw3D together
+npm run dev              # Start hub only (:4000)
+npm run dev:gateway      # Start gateway only (:18789) — Phase 7 NEW
+npm run dev:adapter      # Start legacy adapter (Phase 2, deprecated)
+npm run dev:all         # Start hub + Claw3D + gateway
 npm run dev:claw3d      # Start Claw3D only (:3000)
-npm test                # Run Vitest suite (70 tests: 31 hub + 39 adapter)
+npm test                # Run Vitest suite (98 tests: 31 hub + 39 adapter + 28 gateway)
 npm run test:e2e        # Run E2E smoke test (7 checks: publish, JSONL, health)
 npm run build           # Compile TypeScript to dist/
 npm start               # Run compiled hub (production)
@@ -141,9 +148,9 @@ cli-anything-agent-bus status --json
 ## Testing
 
 - **Framework**: Vitest (fast, ESM-native) for TypeScript; pytest for Python
-- **Coverage**: 70 unit tests (31 hub + 39 adapter) + 16 Python tests + 7 E2E checks
+- **Coverage**: 98 unit tests (31 hub + 39 adapter + 28 gateway) + 16 Python tests + 7 E2E checks
 - **Strategy**: Integration tests over mocks (real WebSocket, real JSONL I/O)
-- **File organization**: Colocate test names with feature (hub.test.ts for hub/, adapter.test.ts for adapter/)
+- **File organization**: Colocate test names with feature (*.test.ts for each module)
 
 **Phase 1 Hub tests (31):**
 - Schema validation (invalid JSON, missing fields, unknown event types)
@@ -161,6 +168,15 @@ cli-anything-agent-bus status --json
 - Input validation via isValidEvent type guard
 - Auto-reconnect on disconnect (hub + Claw3D)
 - Clean shutdown (all connections closed)
+
+**Phase 7 Gateway tests (28) — NEW:**
+- AgentRegistry: agent registration, session tracking, auto-register on tool_use
+- Chat message ring buffer (max 100 per session)
+- Protocol handler: RPC validation, all 10 methods (connect, agents.list, config.get, etc.)
+- Presence versioning and broadcasting
+- Event translation (session_start, tool_use, task_complete, session_end, heartbeat)
+- Hub connection resilience (reconnect on disconnect)
+- Client handshake flow (connect required before other methods)
 
 **Phase 4 CLI tests (16 Python):**
 - Publisher module: event creation, validation
