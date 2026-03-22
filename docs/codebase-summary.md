@@ -1,6 +1,6 @@
 # Codebase Summary
 
-**Status:** Phase 2 Complete — Hub + Claw3D adapter fully functional
+**Status:** Phase 5 Complete — Hub, adapter, hooks, CLI, and E2E tests fully functional
 
 **Last Updated:** 2026-03-21
 
@@ -38,8 +38,25 @@ agent-bus/
 ├── package.json                   ← Dependencies + dev scripts
 ├── tsconfig.json                  ← TypeScript config
 ├── vitest.config.ts               ← Test runner config
-└── scripts/
-    └── dev-all.js                 ← Unified dev mode (hub + Claw3D)
+├── scripts/
+│   ├── dev-all.js                 ← Unified dev mode (hub + Claw3D)
+│   ├── hook-post-tool-use.sh      ← Claude Code PostToolUse hook (Phase 3)
+│   ├── hook-session-event.sh      ← Claude Code session start/end hook (Phase 3)
+│   ├── claude-settings-template.json ← Hook config template (Phase 3)
+│   └── e2e-smoke-test.sh          ← E2E pipeline validation (Phase 5)
+├── cli-anything/
+│   └── agent-harness/             ← CLI-Anything harness (Phase 4)
+│       ├── setup.py               ← Package setup
+│       └── cli_anything/
+│           └── agent_bus/
+│               ├── __main__.py    ← CLI entry point
+│               ├── agent_bus_cli.py ← Command router (publish, subscribe, replay, status)
+│               ├── skills/
+│               │   └── SKILL.md   ← CLI skill metadata
+│               ├── core/          ← Event publisher/subscriber logic
+│               ├── utils/         ← Hub backend utilities
+│               └── tests/
+│                   └── test_core.py ← 16 Python unit tests
 ```
 
 ## Implementation Status
@@ -58,7 +75,14 @@ agent-bus/
 | `src/adapter/event-translator.ts` | ✓ Complete | 110 | Maps AgentEvent→Claw3dEventFrame, deterministic runId/sessionKey |
 | `src/adapter/index.ts` | ✓ Complete | 24 | Standalone adapter bootstrap w/ env config |
 | `tests/adapter.test.ts` | ✓ Complete | 200+ | 39 tests: translation logic, connect/auth, reconnect, validation |
-| CLI-Anything generation | Pending (Phase 3) | Auto | Generated after full integration |
+| `scripts/hook-post-tool-use.sh` | ✓ Complete (Phase 3) | 23 | Claude Code PostToolUse hook, env-configurable, 1s timeout |
+| `scripts/hook-session-event.sh` | ✓ Complete (Phase 3) | — | Claude Code session start/end hook |
+| `scripts/claude-settings-template.json` | ✓ Complete (Phase 3) | — | Hook configuration template for .claude/settings.json |
+| `cli-anything/agent-harness/` | ✓ Complete (Phase 4) | — | Full CLI-Anything harness (publish, subscribe, replay, status) |
+| `cli_anything/agent_bus/skills/SKILL.md` | ✓ Complete (Phase 4) | 49 | CLI skill discovery metadata |
+| `cli_anything/agent_bus/tests/test_core.py` | ✓ Complete (Phase 4) | — | 16 Python unit tests |
+| `scripts/e2e-smoke-test.sh` | ✓ Complete (Phase 5) | 118 | E2E validation: publish 3 events, check JSONL log, verify health |
+| `npm run test:e2e` | ✓ Complete (Phase 5) | — | E2E smoke test runner, all 7 checks pass |
 
 ## Core Components (Phase 1)
 
@@ -143,3 +167,55 @@ agent-bus/
 ✓ Auto-reconnects to hub on disconnect
 ✓ Auto-reconnects to Claw3D on disconnect
 ✓ Stops all connections on shutdown
+
+## Core Components (Phase 3 — Hook Integration)
+
+### Claude Code Hooks (`scripts/`)
+- **hook-post-tool-use.sh** (23 LOC): Fires on every tool use (Edit, Read, Bash, etc.)
+  - Reads env: HUB_URL, AGENT_BUS_AGENT, AGENT_BUS_PROJECT
+  - Extracts tool name (CLAUDE_TOOL_NAME) and file path (CLAUDE_FILE_PATH)
+  - POSTs event to hub with 1s timeout
+  - Fails silently — never blocks Claude Code
+- **hook-session-event.sh**: Fires on session start/end
+- **claude-settings-template.json**: Configuration template for merging into `.claude/settings.json`
+
+### Phase 3 Integration Points
+- Hooks send tool events without latency penalties
+- Environment-configurable (HUB_URL, agent name, project name)
+- Seamless integration with existing Claude Code workflows
+
+## Core Components (Phase 4 — CLI-Anything Harness)
+
+### CLI-Anything Agent Bus (`cli-anything/agent-harness/`)
+- **agent_bus_cli.py**: Command router with 4 subcommands
+  - `publish`: Emit events to hub (agent, project, event type, optional tool/file)
+  - `subscribe`: Real-time WebSocket feed (filter by project, JSON output)
+  - `replay`: Play back JSONL log (--last N, --json)
+  - `status`: Hub health and connection stats
+- **skills/SKILL.md**: CLI discovery metadata for CLI-Anything integration
+- **tests/test_core.py**: 16 unit tests covering all commands
+- **core/ + utils/**: Event publishing, subscription, JSONL replay logic
+
+### Phase 4 Integration
+- Generates discoverable CLI via `/cli-anything:cli-anything ./`
+- No deployment friction — zero-token metadata service
+- Provides audit trail and replay capabilities
+
+## Core Components (Phase 5 — E2E Smoke Tests)
+
+### E2E Test Suite (`scripts/e2e-smoke-test.sh`)
+7 validation checks (all passing):
+1. Hub startup on ephemeral port (4444)
+2. Publish session_start → verify 200 OK
+3. Publish tool_use (Edit auth.ts) → verify 200 OK
+4. Publish session_end → verify 200 OK
+5. JSONL log contains exactly 3 events
+6. Log includes session_start, tool_use, session_end
+7. Health endpoint reports 3 events
+
+**Execution:**
+```bash
+npm run test:e2e
+```
+
+All 7 checks pass with clean hub shutdown.

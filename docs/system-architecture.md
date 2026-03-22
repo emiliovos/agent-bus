@@ -7,13 +7,15 @@
 ## High-Level Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Producers (any machine)                                 │
-│                                                          │
-│  Claude Code ──→ PostToolUse hook ──→ curl POST :4000   │
-│  Gemini CLI  ──→ hook/script ───────→ curl POST :4000   │
-│  Cron job    ──→ script ────────────→ curl POST :4000   │
-└──────────────────────┬──────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│  Producers (any machine)                                            │
+│                                                                     │
+│  Claude Code ──→ PostToolUse hook ──→ scripts/hook-post-tool-use.sh
+│                                    ──→ curl POST :4000/events │     │
+│  Gemini CLI  ──→ hook/script ───────────────────→ curl POST :4000   │
+│  Cron job    ──→ script ────────────────────────→ curl POST :4000   │
+│  CLI-Anything CLI ──→ cli-anything-agent-bus publish ──→ POST :4000 │
+└──────────────────────┬──────────────────────────────────────────────┘
                        │ HTTP POST /events
                        ▼
 ┌──────────────────────────────────────────────────────────┐
@@ -30,17 +32,23 @@
 ┌──────────────────────────────────────────────────────────┐
 │  Consumers                                                │
 │                                                           │
-│  ┌─────────────────────────────────────────────────┐     │
-│  │ Claw3D Adapter (src/adapter/) [PHASE 2]        │     │
-│  │ Dual WS bridge: hub ↔ Claw3D                   │     │
-│  │ Translates events, manages auth                │     │
-│  └────────────────────────┬────────────────────────┘     │
-│                           │ OpenClaw frames              │
-│                           ▼                              │
-│  Claw3D 3D Office ──→ ws://localhost:3000/api/gateway/ws │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │ Claw3D Adapter (src/adapter/) [PHASE 2]             │ │
+│  │ Dual WS bridge: hub ↔ Claw3D                        │ │
+│  │ Translates events, manages auth                     │ │
+│  └──────────────────────────┬───────────────────────────┘ │
+│                             │ OpenClaw frames            │
+│                             ▼                            │
+│  Claw3D 3D Office ──→ ws://localhost:3000/api/gateway/ws  │
 │  Dashboard ──────────→ custom UI                         │
-│  CLI subscriber ─────→ cli-anything-agent-bus subscribe  │
-└──────────────────────────────────────────────────────────┘
+│                                                          │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │ CLI-Anything CLI Subscriber [PHASE 4]               │ │
+│  │ Commands: publish, subscribe, replay, status         │ │
+│  └──────────────────────┬───────────────────────────────┘ │
+│                         │ cli-anything-agent-bus subscribe │
+│                         │ Event stream + JSONL replay     │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -261,3 +269,94 @@ One JSON object per line. Append-only.
 ```
 
 Replay: `cat data/events.jsonl | cli-anything-agent-bus replay --speed 2x`
+
+---
+
+## Phase 3 — Claude Code Hook Integration
+
+### Hook Architecture
+
+Claude Code fires hooks on lifecycle events. Agent Bus provides two hooks:
+
+**PostToolUse Hook** (`scripts/hook-post-tool-use.sh`)
+- Fires after any tool use (Edit, Read, Bash, Write, etc.)
+- Environment: `HUB_URL`, `AGENT_BUS_AGENT`, `AGENT_BUS_PROJECT`
+- Payload: `{ agent, project, event: "tool_use", tool, file? }`
+- Timeout: 1s, fails silently (never blocks Claude Code)
+- Example: Hook on Edit tool → POST /events with tool=Edit, file=auth.ts
+
+**Session Event Hook** (`scripts/hook-session-event.sh`)
+- Fires on `Stop` hook (session end)
+- Payload: `{ agent, project, event: "session_end" }`
+- Optional: merge with Start hook for `session_start`
+
+### Integration Setup
+
+1. Copy or reference hook scripts
+2. Set environment variables:
+   ```bash
+   export AGENT_BUS_AGENT="my-agent"
+   export AGENT_BUS_PROJECT="my-project"
+   export HUB_URL="http://localhost:4000"  # or remote Tailscale IP
+   ```
+3. Merge `scripts/claude-settings-template.json` into `.claude/settings.json`
+
+---
+
+## Phase 4 — CLI-Anything Harness
+
+### CLI Commands
+
+**publish** — Emit event to hub
+```bash
+cli-anything-agent-bus publish \
+  --agent backend-dev \
+  --project tickets \
+  --event tool_use \
+  --tool Edit \
+  --file auth.ts
+```
+
+**subscribe** — Real-time event stream
+```bash
+cli-anything-agent-bus subscribe \
+  --project tickets \
+  --json
+```
+
+**replay** — Playback from JSONL log
+```bash
+cli-anything-agent-bus replay \
+  --last 20 \
+  --json
+```
+
+**status** — Hub health
+```bash
+cli-anything-agent-bus status --json
+```
+
+### Discovery
+
+CLI is discoverable via `/cli-anything:cli-anything ./` command in Claude Code. Zero deployment friction — metadata in `SKILL.md`.
+
+---
+
+## Phase 5 — E2E Smoke Tests
+
+### Test Coverage (7 checks, all passing)
+
+```bash
+npm run test:e2e
+```
+
+Validates full pipeline:
+1. Hub startup on ephemeral port (4444)
+2. POST /events session_start → 200 OK
+3. POST /events tool_use → 200 OK
+4. POST /events session_end → 200 OK
+5. JSONL log has exactly 3 events
+6. All event types (session_start, tool_use, session_end) logged
+7. GET /health reports 3 events
+
+Uses `set -euo pipefail` for strict error handling. Cleans up temp directory on exit.

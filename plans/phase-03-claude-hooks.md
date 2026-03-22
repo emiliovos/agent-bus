@@ -1,7 +1,7 @@
 # Phase 3 — Claude Code Hooks Integration
 
 **Priority:** P1
-**Status:** Not started
+**Status:** Complete
 **Effort:** ~30min
 **Depends on:** Phase 1
 
@@ -34,13 +34,14 @@ Configure Claude Code hooks to fire events to the agent-bus on every tool use, s
 
 ## Success Criteria
 
-- [ ] Claude Code session fires tool → event appears in hub
-- [ ] Claw3D shows agent working (via phase 2 adapter)
-- [ ] Hook doesn't slow down Claude Code (1s timeout, async)
-- [ ] Works on Mac Mini (localhost) and VPS (remote URL)
+- [x] Claude Code session fires tool → event appears in hub
+- [x] Claw3D shows agent working (via phase 2 adapter)
+- [x] Hook doesn't slow down Claude Code (1s timeout, async)
+- [x] Works on Mac Mini (localhost) and VPS (remote URL)
 
-## Todo
+## Deliverables
 
-- [ ] scripts/hook-post-tool-use.sh
-- [ ] scripts/claude-settings-template.json
-- [ ] Test on local Claude Code session
+- [x] scripts/hook-post-tool-use.sh — reads CLAUDE_TOOL_NAME, POSTs to hub, 1s timeout, fails silently
+- [x] scripts/hook-session-event.sh — sends session_start/session_end
+- [x] scripts/claude-settings-template.json — PostToolUse + Stop hooks
+- [x] README updated with installation docs

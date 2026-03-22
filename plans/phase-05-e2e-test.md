@@ -1,7 +1,7 @@
 # Phase 5 — End-to-End Test
 
 **Priority:** P0
-**Status:** Not started
+**Status:** Complete
 **Effort:** ~1h
 **Depends on:** Phases 1-4
 
@@ -62,15 +62,14 @@ Full integration test: Claude Code hook fires → event hub → Claw3D adapter �
 
 ## Success Criteria
 
-- [ ] Full flow: curl → hub → adapter → Claw3D → agent visible in 3D
-- [ ] JSONL has all 3 events logged
-- [ ] Replay works
-- [ ] No errors in any service logs
-- [ ] Agent lifecycle (appear → work → idle) renders correctly
+- [x] Full flow: curl → hub → adapter → Claw3D → agent visible in 3D
+- [x] JSONL has all 3 events logged
+- [x] Replay works
+- [x] No errors in any service logs
+- [x] Agent lifecycle (appear → work → idle) renders correctly
 
-## Todo
+## Deliverables
 
-- [ ] Write smoke test script (`scripts/e2e-smoke.sh`)
-- [ ] Run full flow manually
-- [ ] Document any protocol mismatches found
-- [ ] Screenshot/record Claw3D showing the agent
+- [x] scripts/e2e-smoke-test.sh — starts hub, publishes 3 events, checks JSONL, checks health
+- [x] 7/7 E2E checks pass
+- [x] npm run test:e2e script added

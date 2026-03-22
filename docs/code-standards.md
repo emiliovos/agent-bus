@@ -60,8 +60,42 @@ npm run dev:adapter      # Start Claw3D adapter (requires HUB_URL, CLAW3D_URL, C
 npm run dev:all         # Start hub + Claw3D together
 npm run dev:claw3d      # Start Claw3D only (:3000)
 npm test                # Run Vitest suite (70 tests: 31 hub + 39 adapter)
+npm run test:e2e        # Run E2E smoke test (7 checks: publish, JSONL, health)
 npm run build           # Compile TypeScript to dist/
 npm start               # Run compiled hub (production)
+```
+
+## Hook Scripts (Phase 3)
+
+```bash
+# Claude Code PostToolUse hook — fires on every tool use
+bash scripts/hook-post-tool-use.sh
+  Env: HUB_URL, AGENT_BUS_AGENT, AGENT_BUS_PROJECT
+  Example: Event on Edit tool use
+
+# Claude Code session event hook — fires on session start/end
+bash scripts/hook-session-event.sh [start|end]
+  Env: Same as above
+  Example: Register session lifecycle events
+
+# Configure hooks in .claude/settings.json
+# Use scripts/claude-settings-template.json as reference
+```
+
+## CLI-Anything Commands (Phase 4)
+
+```bash
+# Publish event
+cli-anything-agent-bus publish --agent dev --project tickets --event tool_use --tool Edit --file auth.ts
+
+# Subscribe to live events
+cli-anything-agent-bus subscribe --project tickets --json
+
+# Replay from JSONL log
+cli-anything-agent-bus replay --last 20 --json
+
+# Check hub health
+cli-anything-agent-bus status --json
 ```
 
 ## Error Handling
@@ -73,11 +107,15 @@ npm start               # Run compiled hub (production)
 - Phase 2 Adapter: Auto-reconnect on hub/Claw3D disconnect (3s delay, configurable)
 - Adapter: Wait for Claw3D auth response before forwarding events
 - Adapter: Fail fast if CLAW3D_TOKEN env var is missing
+- **Phase 3 Hooks**: Fail silently with 1s timeout — never block Claude Code
+- **Phase 3 Hooks**: Gracefully fall back to default env values (localhost:4000, whoami, pwd basename)
+- **Phase 4 CLI**: Validate hub connectivity before executing commands (retry on timeout)
+- **Phase 5 E2E**: Use ephemeral ports (4444) to avoid conflicts with dev server
 
 ## Testing
 
-- **Framework**: Vitest (fast, ESM-native)
-- **Coverage**: 70 tests (31 hub + 39 adapter)
+- **Framework**: Vitest (fast, ESM-native) for TypeScript; pytest for Python
+- **Coverage**: 70 unit tests (31 hub + 39 adapter) + 16 Python tests + 7 E2E checks
 - **Strategy**: Integration tests over mocks (real WebSocket, real JSONL I/O)
 - **File organization**: Colocate test names with feature (hub.test.ts for hub/, adapter.test.ts for adapter/)
 
@@ -97,3 +135,17 @@ npm start               # Run compiled hub (production)
 - Input validation via isValidEvent type guard
 - Auto-reconnect on disconnect (hub + Claw3D)
 - Clean shutdown (all connections closed)
+
+**Phase 4 CLI tests (16 Python):**
+- Publisher module: event creation, validation
+- Subscriber module: WebSocket connection, message parsing
+- Replay module: JSONL parsing, filtering
+- Status module: health endpoint querying
+- CLI router: command dispatch, error handling
+
+**Phase 5 E2E tests (7 checks):**
+- Hub startup and liveliness on ephemeral port
+- Event publishing (session_start, tool_use, session_end)
+- JSONL log correctness (event count, types, order)
+- Health endpoint statistics accuracy
+- Clean shutdown and resource cleanup

@@ -1,7 +1,7 @@
 # Phase 4 — CLI-Anything Generation
 
 **Priority:** P1
-**Status:** Not started
+**Status:** Complete
 **Effort:** ~1h
 **Depends on:** Phase 1
 
@@ -60,17 +60,17 @@ cli-anything-agent-bus status --json
 
 ## Success Criteria
 
-- [ ] CLI-Anything generates working CLI from source
-- [ ] `cli-anything-agent-bus --help` shows all commands
-- [ ] Skill.md generated and discoverable
-- [ ] Generated tests pass
-- [ ] Claude Code can discover and use the CLI via Skill.md
+- [x] CLI-Anything generates working CLI from source
+- [x] `cli-anything-agent-bus --help` shows all commands
+- [x] Skill.md generated and discoverable
+- [x] Generated tests pass
+- [x] Claude Code can discover and use the CLI via Skill.md
 
-## Todo
+## Deliverables
 
-- [ ] Install CLI-Anything plugin
-- [ ] Run generation
-- [ ] Validate output
-- [ ] Refine if gaps found
-- [ ] Install to PATH
-- [ ] Test Skill.md discovery
+- [x] CLI-Anything harness at cli-anything/agent-harness/
+- [x] Commands: publish, subscribe, replay, status (all working)
+- [x] SKILL.md for agent discovery
+- [x] setup.py with pip install -e support
+- [x] 16/16 Python tests passing
+- [x] CLI installed as cli-anything-agent-bus
