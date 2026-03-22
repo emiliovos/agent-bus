@@ -1,7 +1,7 @@
 # Phase 1 — Project Setup + Event Hub
 
 **Priority:** P0
-**Status:** Not started
+**Status:** Complete
 **Effort:** ~2h
 
 ## Overview
@@ -59,18 +59,34 @@ Set up TypeScript project and build the core event hub — a WebSocket + HTTP se
 
 ## Success Criteria
 
-- [ ] `npm run dev` starts hub on :4000
-- [ ] `curl POST :4000/events` with valid JSON → broadcasts to WS clients
-- [ ] `data/events.jsonl` grows with each event
-- [ ] `npm test` passes all tests
-- [ ] `GET :4000/health` returns client count and event count
+- [x] `npm run dev` starts hub on :4000
+- [x] `curl POST :4000/events` with valid JSON → broadcasts to WS clients
+- [x] `data/events.jsonl` grows with each event
+- [x] `npm test` passes all tests (31 tests passing)
+- [x] `GET :4000/health` returns client count and event count
 
 ## Todo
 
-- [ ] npm init + deps
-- [ ] tsconfig.json
-- [ ] src/types/agent-event.ts
-- [ ] src/hub/event-hub.ts
-- [ ] src/index.ts
-- [ ] tests/hub.test.ts
-- [ ] Manual smoke test
+- [x] npm init + deps (ws, typescript, tsx, vitest, @types/*)
+- [x] tsconfig.json (strict, ESM, ES2022, NodeNext)
+- [x] src/types/agent-event.ts (AgentEvent interface, EventType union, isValidEvent)
+- [x] src/hub/event-hub.ts (HTTP+WS server, POST /events, GET /health, JSONL logging, body size limit 1MB, field length limit 1024)
+- [x] src/index.ts (entry point with env config, SIGINT/SIGTERM handlers, graceful shutdown 5s timeout)
+- [x] tests/hub.test.ts (31 tests, all passing)
+- [x] Manual smoke test (tested curl POST, WS broadcast, JSONL logging)
+
+## Additional Completions
+
+- [x] vitest.config.ts (scoped to tests/ only, excludes claw3d/)
+- [x] scripts/dev-all.js (parallel launcher for agent-bus + claw3d)
+- [x] Claw3D embedded in claw3d/ directory (cloned from GitHub, .git removed)
+- [x] package.json scripts: dev, dev:all, dev:claw3d, build, build:claw3d, start, test
+
+## Code Review Score
+
+8.5/10 — Critical issues fixed:
+- Body size limit enforcement (1MB)
+- WriteStream proper resource management
+- Nullish coalescing (??) operator for field defaults
+- Close timeout (5s) for graceful shutdown
+- Field length validation (1024 chars max)

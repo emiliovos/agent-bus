@@ -4,3 +4,5 @@ data/
 *.log
 .env
 .DS_Store
+claw3d/.next/
+claw3d/node_modules/

@@ -1,0 +1,29 @@
+{
+  "name": "agent-bus",
+  "version": "1.0.0",
+  "description": "Lightweight event hub that bridges AI coding sessions (Claude Code, Gemini, etc.) to [Claw3D](https://github.com/iamlukethedev/Claw3D) 3D visualization. Zero inference cost — pure event routing.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:all": "node scripts/dev-all.js",
+    "dev:claw3d": "cd claw3d && npm run dev",
+    "build": "tsc",
+    "build:claw3d": "cd claw3d && npm run build",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "keywords": ["agent-bus", "websocket", "event-hub", "claw3d"],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}

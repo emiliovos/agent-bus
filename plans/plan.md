@@ -4,7 +4,7 @@
 
 | Phase | Description | Status | File |
 |-------|-------------|--------|------|
-| 1 | Project setup + event hub | Not started | [phase-01](phase-01-event-hub.md) |
+| 1 | Project setup + event hub | Complete | [phase-01](phase-01-event-hub.md) |
 | 2 | Claw3D adapter | Not started | [phase-02](phase-02-claw3d-adapter.md) |
 | 3 | Claude Code hooks integration | Not started | [phase-03](phase-03-claude-hooks.md) |
 | 4 | CLI-Anything generation | Not started | [phase-04](phase-04-cli-anything.md) |

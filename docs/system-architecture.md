@@ -40,58 +40,88 @@
 
 ## Components
 
-### 1. Hub (`src/hub/`)
+### 1. Hub (`src/hub/event-hub.ts`) — PHASE 1 COMPLETE
 
-WebSocket + HTTP server. ~100 LOC.
+HTTP + WebSocket event hub. 163 LOC.
 
-- **POST /events**: Accepts JSON event, validates schema, broadcasts + logs
-- **WebSocket :4000**: Consumers connect, receive all events in real-time
-- **JSONL logger**: Appends every event to `data/events.jsonl`
+**Responsibilities:**
+- **POST /events**: Accepts JSON event, validates schema (required: agent, project, event), validates field lengths (max 1024 chars), broadcasts + logs
+- **GET /health**: Returns hub statistics (clients, event count)
+- **WebSocket :4000**: Consumers connect, receive all events in real-time (fan-out broadcast)
+- **JSONL logger**: Appends every event to `data/events.jsonl` with WriteStream for atomic writes
+- **Input protection**: Max body size 1 MB, field length validation, graceful error handling
+- **Graceful shutdown**: 5-second timeout to close connections cleanly on SIGINT/SIGTERM
 
-### 2. Claw3D Adapter (`src/adapter/`)
+**Event processing flow:**
+1. Parse + validate JSON schema
+2. Check field lengths
+3. Stamp timestamp if missing
+4. Broadcast to all WebSocket clients
+5. Append to JSONL log
 
-Translates agent-bus events into Claw3D WebSocket protocol.
+### 2. Types (`src/types/agent-event.ts`) — PHASE 1 COMPLETE
 
-- Connects to `ws://localhost:3000/api/gateway/ws`
-- Sends connect frame with OpenClaw gateway token
-- Maps agent-bus events to Claw3D frames:
-  - `session_start` → agent lifecycle `phase: "start"`
-  - `tool_use` → agent runtime `stream: "assistant"` delta
-  - `session_end` → agent lifecycle `phase: "end"`
-
-### 3. Types (`src/types/`)
-
-Shared TypeScript interfaces for events.
+Shared TypeScript interfaces and validation.
 
 ```typescript
+type EventType = 'session_start' | 'session_end' | 'tool_use' | 'task_complete' | 'heartbeat'
+
 interface AgentEvent {
-  ts: number;           // Unix timestamp ms
-  agent: string;        // Agent identifier
-  project: string;      // Project namespace
-  event: string;        // Event type: tool_use, session_start, session_end, task_complete
-  tool?: string;        // Tool name (for tool_use events)
-  file?: string;        // File path (for file operations)
-  message?: string;     // Human-readable description
+  ts: number;           // Unix timestamp ms (added by hub if missing)
+  agent: string;        // Agent identifier (required, max 1024 chars)
+  project: string;      // Project namespace (required, max 1024 chars)
+  event: EventType;     // Event type (required, validated against set)
+  tool?: string;        // Tool name (optional, for tool_use events)
+  file?: string;        // File path (optional, for file operations)
+  message?: string;     // Human-readable description (optional)
 }
+
+function isValidEvent(data: unknown): data is AgentEvent
 ```
+
+### 3. Claw3D Integration (`claw3d/`) — EMBEDDED
+
+Claw3D visualization engine now embedded in project directory.
+
+**Structure:**
+- `claw3d/server/index.js` — Node.js WebSocket gateway, renders agents
+- `claw3d/src/app/api/gateway/` — OpenClaw protocol endpoints
+- `claw3d/public/office-assets/` — 3D models, textures for office environment
+
+**Phase 2 will add:** Claw3D Adapter (`src/adapter/`) to translate agent-bus events to Claw3D WebSocket protocol.
+
+Current Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw frames.
 
 ---
 
-## Event Flow
+## Event Flow (Phase 1 — Hub Complete)
 
 ```
-1. Claude Code runs Edit tool on auth.ts
-2. PostToolUse hook fires:
-   curl POST :4000/events -d '{"agent":"dev","project":"tickets","event":"tool_use","tool":"Edit","file":"auth.ts"}'
-3. Hub receives POST:
-   a. Validates JSON schema
-   b. Adds timestamp if missing
-   c. Appends to data/events.jsonl
-   d. Broadcasts to all WS consumers
-4. Claw3D adapter (WS consumer) receives event:
-   a. Maps to Claw3D frame: { type: "event", event: "agent", payload: { ... } }
-   b. Sends frame to ws://localhost:3000/api/gateway/ws
-5. Claw3D renders: "dev" agent animates at desk, working state
+1. Producer publishes event (Claude Code hook, cron, dashboard)
+   curl POST :4000/events \
+     -H "Content-Type: application/json" \
+     -d '{"agent":"dev","project":"tickets","event":"tool_use","tool":"Edit","file":"auth.ts"}'
+
+2. Hub receives POST /events:
+   a. Parses JSON
+   b. Validates schema (agent, project, event required; event in allowed set)
+   c. Validates field lengths (max 1024 chars each)
+   d. Checks body size (max 1 MB)
+   e. Stamps timestamp if missing: { ...event, ts: Date.now() }
+   f. Increments event counter
+   g. Broadcasts serialized event to ALL connected WebSocket clients
+   h. Appends event + newline to data/events.jsonl (WriteStream handles concurrency)
+   i. Returns 200 { ok: true, ts: number }
+
+3. WebSocket consumers (connected via ws://0.0.0.0:4000) receive event in real-time:
+   {"ts":1711065605000,"agent":"dev","project":"tickets","event":"tool_use","tool":"Edit","file":"auth.ts"}
+
+4. JSONL log persists events for replay and audit:
+   cat data/events.jsonl
+   {"ts":1711065600000,"agent":"dev","project":"tickets","event":"session_start"}
+   {"ts":1711065605000,"agent":"dev","project":"tickets","event":"tool_use","tool":"Edit","file":"auth.ts"}
+
+5. Phase 2: Claw3D adapter will consume WebSocket feed and render agents in 3D office
 ```
 
 ---
@@ -146,20 +176,32 @@ interface AgentEvent {
 
 ---
 
-## Network Topology
+## Network Topology (Phase 1)
 
 ```
 Mac Mini (192.168.101.86)
-├── Agent Bus Hub         :4000
-├── Claw3D Studio         :3000
-├── OpenClaw Gateway      :18789
-└── Claw3D Adapter        (connects to :3000 internally)
+├── Agent Bus Hub         :4000          ← Event hub (src/hub/)
+│   ├── POST /events      (HTTP)         ← Accept events from producers
+│   ├── GET /health       (HTTP)         ← Hub statistics
+│   └── /                 (WebSocket)    ← Broadcast to consumers
+│
+├── Claw3D Next.js App    :3000          ← 3D visualization (embedded claw3d/)
+│   ├── /api/gateway/ws   (WebSocket)    ← OpenClaw protocol endpoint
+│   └── /office           (UI)           ← 3D office environment
+│
+├── OpenClaw Gateway      :18789         ← Passive mode ($0 tokens)
+│   └── heartbeat ping    (999h)         ← Keep-alive
+│
+└── JSONL Log             data/          ← Event persistence (local filesystem)
+    └── events.jsonl                     ← Append-only event stream
 
-VPS (remote)
-└── Claude Code hooks → POST http://<mac-mini-tailscale>:4000/events
+Remote Producers (VPS, Windows PC, anywhere)
+├── Claude Code PostToolUse hook → POST http://<mac-mini-ip>:4000/events
+├── Cron jobs, scripts → POST http://<mac-mini>:4000/events
+└── Custom dashboards → ws://mac-mini:4000 (subscribe)
 
-Windows PC (192.168.101.152)
-└── Claude Code hooks → POST http://192.168.101.86:4000/events
+Phase 2: Claw3D Adapter
+└── Connects to :4000 (WebSocket) → translates → :3000/api/gateway/ws
 ```
 
 ---
