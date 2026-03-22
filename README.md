@@ -18,7 +18,15 @@ Your AI session (anywhere) → CF Tunnel HTTPS → agent-bus hub → Claw3D rend
 
 ## Quick Start
 
-### Local Development (Single Machine)
+### For Users: Get Started in 5 Minutes
+
+New to Agent Bus? Follow the [Getting Started Guide](docs/GETTING_STARTED.md):
+- Local hub setup
+- Claude Code hook integration
+- Platform-specific instructions (macOS, Windows, Linux)
+- Remote access via Cloudflare Tunnel
+
+### For Developers: Local Development
 
 ```bash
 npm install
@@ -41,79 +49,48 @@ npm start          # Start hub (:4000)
 bash scripts/setup-cloudflare-tunnel.sh
 ```
 
-Tunnel endpoints:
-- Hub: https://agent-bus.boxlab.cloud
-- Claw3D: https://claw3d.boxlab.cloud
+Tunnel endpoints: `https://agent-bus.yourdomain.com` and `https://claw3d.yourdomain.com` (replace with your Cloudflare domain)
 
 ## Usage
 
-### Publish an event
+### Publish Events
 
 ```bash
 curl -X POST http://localhost:4000/events \
   -H "Content-Type: application/json" \
-  -d '{"agent":"backend-dev","project":"tickets","event":"tool_use","tool":"Edit"}'
+  -d '{"agent":"alice","project":"demo","event":"tool_use","tool":"Read"}'
 ```
 
-### Subscribe to events
+### Subscribe to Events
 
 ```js
 const ws = new WebSocket('ws://localhost:4000');
 ws.onmessage = (msg) => console.log(JSON.parse(msg.data));
 ```
 
-### Claude Code Hook Integration
+### Integrate Claude Code
 
-#### Step 1: Get CF Access Token
-
-```bash
-# From Cloudflare dashboard → Applications → Agent Bus
-export CF_ACCESS_SERVICE_TOKEN="<your-service-token>"
-```
-
-#### Step 2: Configure Environment
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-export AGENT_BUS_AGENT="my-agent-name"
-export AGENT_BUS_PROJECT="my-project"
-export HUB_URL="https://agent-bus.boxlab.cloud"  # Remote
-export CF_ACCESS_SERVICE_TOKEN="<token>"
-
-# Or for local dev:
-# export HUB_URL="http://localhost:4000"
-```
-
-#### Step 3: Merge Hook Settings
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [{
-      "type": "command",
-      "command": "bash /path/to/agent-bus/scripts/hook-post-tool-use.sh"
-    }],
-    "Stop": [{
-      "type": "command",
-      "command": "bash /path/to/agent-bus/scripts/hook-session-event.sh end"
-    }]
-  }
-}
-```
-
-Hooks fail silently with 1s timeout — they never block Claude Code.
+See [Getting Started Guide → Connect Claude Code Hooks](docs/GETTING_STARTED.md#connect-claude-code-hooks) for step-by-step integration with environment variables, hook scripts, and settings configuration.
 
 ## Documentation
 
+### For Users & Operators
+
 | Document | Purpose |
 |----------|---------|
-| [README](README.md) | This file — quick start |
-| [Project Overview PDR](docs/project-overview-pdr.md) | Requirements & success criteria |
-| [System Architecture](docs/system-architecture.md) | Technical design & protocols |
-| [Code Standards](docs/code-standards.md) | Development conventions |
-| [Deployment Guide](docs/deployment-guide.md) | Setup, monitoring, troubleshooting |
-| [Project Roadmap](docs/project-roadmap.md) | Phase status & timeline |
-| [Codebase Summary](docs/codebase-summary.md) | File inventory & LOC |
+| [Getting Started](docs/GETTING_STARTED.md) | Step-by-step setup (5–20 min) |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes |
+
+### For Developers & Architects
+
+| Document | Purpose |
+|----------|---------|
+| [System Architecture](docs/system-architecture.md) | Technical design, event schema, protocols |
+| [Code Standards](docs/code-standards.md) | Development conventions and patterns |
+| [Project Overview PDR](docs/project-overview-pdr.md) | Requirements, success criteria, constraints |
+| [Deployment Guide](docs/deployment-guide.md) | Environment variables, production setup |
+| [Project Roadmap](docs/project-roadmap.md) | Phase status, milestones, timeline |
+| [Codebase Summary](docs/codebase-summary.md) | File inventory, LOC, module structure |
 
 ## Tech Stack
 
@@ -122,17 +99,17 @@ Hooks fail silently with 1s timeout — they never block Claude Code.
 - **Visualization:** Claw3D (Next.js), 3D office environment
 - **CLI:** Python Click, event replay, publish/subscribe
 - **Transport:** Cloudflare Tunnel (HTTPS) + CF Access (service tokens)
-- **Testing:** Vitest (98 tests) + pytest (16 tests) + E2E (7 checks)
+- **Testing:** Vitest (121 tests across 3 suites) + E2E smoke tests
 
 ## Cost
 
 | Component | Cost |
 |-----------|------|
-| Infrastructure | $0 (existing Mac Mini) |
-| CF Tunnel | $0 (quota-based) |
-| CF Access | $0 (service tokens only) |
-| OpenClaw | $0 (passive mode, 999h heartbeat) |
-| **Total** | **$0** |
+| Hub Server | $0 (any machine, local or VPS) |
+| Cloudflare Tunnel | $0 (free tier) |
+| Cloudflare Access | $0 (service tokens) |
+| OpenClaw Gateway | $0 (passive mode, no LLM inference) |
+| **Total** | **$0/month** |
 
 ## License
 

@@ -220,8 +220,8 @@ flowchart TB
 
 | Service | URL / Port | Status |
 |---------|-----------|--------|
-| Hub | `https://agent-bus.boxlab.cloud` | Live (CF Access protected) |
-| Claw3D | `https://claw3d.boxlab.cloud` | Live (CF Access protected) |
+| Hub | `https://agent-bus.yourdomain.com` | Live (CF Access protected) |
+| Claw3D | `https://claw3d.yourdomain.com` | Live (CF Access protected) |
 | Hub local | `http://localhost:4000` | Running |
 | CF Tunnel | LaunchAgent (auto-start) | Persistent |
 
@@ -312,6 +312,6 @@ cd67eb8 feat: event hub (phase 1)
 
 ---
 
-**Repo:** https://github.com/emiliovos/agent-bus (private)
-**Hub:** https://agent-bus.boxlab.cloud (CF Access protected)
-**Claw3D:** https://claw3d.boxlab.cloud (CF Access protected)
+**Repo:** https://github.com/<your-github-username>/agent-bus (private)
+**Hub:** https://agent-bus.yourdomain.com (CF Access protected)
+**Claw3D:** https://claw3d.yourdomain.com (CF Access protected)

@@ -72,7 +72,7 @@ bash scripts/setup-cloudflare-tunnel.sh
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `CF_ACCESS_SERVICE_TOKEN` | — | CF Access service token |
-| `HUB_URL` | https://agent-bus.boxlab.cloud | Remote hub URL (with CF token) |
+| `HUB_URL` | https://agent-bus.yourdomain.com | Remote hub URL (with CF token) |
 
 ---
 
@@ -80,7 +80,7 @@ bash scripts/setup-cloudflare-tunnel.sh
 
 ### Prerequisites
 - Mac Mini with macOS 11+
-- Cloudflare account with tunnel domain (agent-bus.boxlab.cloud)
+- Cloudflare account with tunnel domain (agent-bus.yourdomain.com)
 - Claw3D API token (OpenClaw auth)
 
 ### Automated Setup
@@ -99,8 +99,8 @@ bash scripts/setup-cloudflare-tunnel.sh
 1. Downloads cloudflared binary (if needed)
 2. Creates CF tunnel config at `~/.cloudflare/agent-bus.json`
 3. Sets up DNS routes:
-   - `agent-bus.boxlab.cloud` → localhost:4000
-   - `claw3d.boxlab.cloud` → localhost:3000
+   - `agent-bus.yourdomain.com` → localhost:4000
+   - `claw3d.yourdomain.com` → localhost:3000
 4. Creates CF Access policy with service token
 5. Installs LaunchAgent for auto-start
 6. Updates hook scripts with CF Access headers
@@ -195,12 +195,12 @@ sed -i 's|^CF_ACCESS_SERVICE_TOKEN=|CF_ACCESS_SERVICE_TOKEN="<token>"|' \
 |--------|---------|
 | `npm run dev` | Start hub only (:4000) |
 | `npm run dev:gateway` | Start gateway only (:18789) — Phase 7 |
-| `npm run dev:all` | Start hub + Claw3D + gateway |
+| `npm run dev:all` | Start hub + gateway + Claw3D (kills stale watchers) |
 | `npm run dev:adapter` | Start legacy adapter (deprecated) |
 | `npm run dev:claw3d` | Start Claw3D only (:3000) |
 | `npm run build` | Compile TypeScript → dist/ |
 | `npm start` | Run compiled hub (production) |
-| `npm test` | Run Vitest suite (98 tests) |
+| `npm test` | Run Vitest suite (121 tests all passing) |
 | `npm run test:e2e` | Run E2E smoke test |
 
 ---
@@ -209,9 +209,11 @@ sed -i 's|^CF_ACCESS_SERVICE_TOKEN=|CF_ACCESS_SERVICE_TOKEN="<token>"|' \
 
 - [ ] Node.js 18+ installed
 - [ ] Hub PORT configured (default 4000)
-- [ ] Gateway PORT configured (default 18789)
+- [ ] Gateway PORT configured (default 18789) — Phase 7 (native OpenClaw)
 - [ ] LOG_DIR exists with write permissions
-- [ ] Gateway started (npm run dev:gateway) — Phase 7
+- [ ] Gateway started (npm run dev:gateway or npm run dev:all)
+- [ ] All 121 tests passing (npm test)
+- [ ] E2E smoke tests passing (npm run test:e2e)
 - [ ] CF Tunnel credentials installed (optional, for remote access)
 - [ ] LaunchAgent configured for auto-start (optional)
 - [ ] CF Access service token distributed (optional)
@@ -226,7 +228,7 @@ sed -i 's|^CF_ACCESS_SERVICE_TOKEN=|CF_ACCESS_SERVICE_TOKEN="<token>"|' \
 ### Hub Health
 
 ```bash
-curl https://agent-bus.boxlab.cloud/health
+curl https://agent-bus.yourdomain.com/health
 ```
 
 Response:

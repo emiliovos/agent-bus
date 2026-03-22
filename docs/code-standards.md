@@ -62,15 +62,17 @@ scripts/
 
 ```bash
 npm run dev              # Start hub only (:4000)
-npm run dev:gateway      # Start gateway only (:18789) — Phase 7 NEW
-npm run dev:adapter      # Start legacy adapter (Phase 2, deprecated)
-npm run dev:all         # Start hub + Claw3D + gateway
+npm run dev:gateway      # Start gateway only (:18789)
+npm run dev:adapter      # Start legacy adapter (deprecated)
+npm run dev:all         # Start hub + gateway + Claw3D (kills stale watchers)
 npm run dev:claw3d      # Start Claw3D only (:3000)
-npm test                # Run Vitest suite (98 tests: 31 hub + 39 adapter + 28 gateway)
+npm test                # Run Vitest suite (100 tests: 38 hub + 40 adapter + 22 gateway)
 npm run test:e2e        # Run E2E smoke test (7 checks: publish, JSONL, health)
 npm run build           # Compile TypeScript to dist/
 npm start               # Run compiled hub (production)
 ```
+
+**Note:** `npm run dev:all` kills stale tsx watchers before starting to prevent "port already in use" errors. Uses colored output prefixes (hub: cyan, gateway: yellow, claw3d: magenta).
 
 ## Hook Scripts (Phase 3 + Phase 6)
 
@@ -92,7 +94,7 @@ bash scripts/hook-session-event.sh [start|end]
 # Updated hooks with Cloudflare Access authentication
 bash scripts/hook-post-tool-use.sh
   Env: HUB_URL, AGENT_BUS_AGENT, AGENT_BUS_PROJECT, CF_ACCESS_SERVICE_TOKEN
-  Example: curl -X POST https://agent-bus.boxlab.cloud/events \
+  Example: curl -X POST https://agent-bus.yourdomain.com/events \
     -H "X-Auth-Service-Token: $CF_ACCESS_SERVICE_TOKEN" \
     -d '{...}'
 
@@ -147,12 +149,12 @@ cli-anything-agent-bus status --json
 
 ## Testing
 
-- **Framework**: Vitest (fast, ESM-native) for TypeScript; pytest for Python
-- **Coverage**: 98 unit tests (31 hub + 39 adapter + 28 gateway) + 16 Python tests + 7 E2E checks
+- **Framework**: Vitest (fast, ESM-native) for TypeScript
+- **Coverage**: 100 TypeScript tests (38 hub + 40 adapter + 22 gateway) + 7 E2E checks
 - **Strategy**: Integration tests over mocks (real WebSocket, real JSONL I/O)
 - **File organization**: Colocate test names with feature (*.test.ts for each module)
 
-**Phase 1 Hub tests (31):**
+**Phase 1 Hub tests (38):**
 - Schema validation (invalid JSON, missing fields, unknown event types)
 - Field length validation (max 1024 chars)
 - Payload size limits (max 1 MB)
@@ -160,30 +162,19 @@ cli-anything-agent-bus status --json
 - JSONL persistence (events written and readable)
 - Graceful shutdown (connections closed, no hanging processes)
 
-**Phase 2 Adapter tests (39):**
-- Event translation (all EventType → Claw3dEventFrame)
-- runId/sessionKey derivation (deterministic, consistent)
-- Connect frame auth flow
-- Dual WebSocket connection (hub + Claw3D)
-- Input validation via isValidEvent type guard
-- Auto-reconnect on disconnect (hub + Claw3D)
-- Clean shutdown (all connections closed)
-
-**Phase 7 Gateway tests (28) — NEW:**
+**Phase 7 Gateway tests (22):**
 - AgentRegistry: agent registration, session tracking, auto-register on tool_use
 - Chat message ring buffer (max 100 per session)
+- State version incrementing on agent list changes
+- Agent name derivation (short IDs preserved, long ones kebab→title)
+- Emoji assignment (hash-based, deterministic)
+- Idle→active transitions with frames[] array return (fixes Claw3D "working" state)
 - Protocol handler: RPC validation, all 10 methods (connect, agents.list, config.get, etc.)
-- Presence versioning and broadcasting
-- Event translation (session_start, tool_use, task_complete, session_end, heartbeat)
-- Hub connection resilience (reconnect on disconnect)
-- Client handshake flow (connect required before other methods)
-
-**Phase 4 CLI tests (16 Python):**
-- Publisher module: event creation, validation
-- Subscriber module: WebSocket connection, message parsing
-- Replay module: JSONL parsing, filtering
-- Status module: health endpoint querying
-- CLI router: command dispatch, error handling
+- Gateway hub connection and reconnect resilience
+- Browser WebSocket connect handshake → hello-ok
+- Hub events flow to browser client
+- agents.list reflects hub events
+- Client handshake enforcement (connect required before other methods)
 
 **Phase 5 E2E tests (7 checks):**
 - Hub startup and liveliness on ephemeral port

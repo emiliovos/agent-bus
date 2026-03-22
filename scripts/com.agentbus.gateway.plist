@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Agent Bus Gateway — macOS LaunchAgent
+  Auto-starts the OpenClaw gateway (:18789) on login.
+  Requires hub (com.agentbus.hub) to be running first.
+
+  Setup:
+    1. Edit the three placeholder values below:
+         /path/to/agent-bus  →  absolute path to your agent-bus repo
+         /usr/local/bin/node →  output of: which node
+         /Users/<yourname>   →  your home directory
+
+    2. Copy to LaunchAgents:
+         cp scripts/com.agentbus.gateway.plist ~/Library/LaunchAgents/
+
+    3. Load (hub must be loaded first):
+         launchctl load ~/Library/LaunchAgents/com.agentbus.hub.plist
+         launchctl load ~/Library/LaunchAgents/com.agentbus.gateway.plist
+
+    4. Verify:
+         launchctl list | grep agentbus
+         curl http://localhost:18789/health
+
+  Unload:
+    launchctl unload ~/Library/LaunchAgents/com.agentbus.gateway.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.agentbus.gateway</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <!-- Replace with: which node -->
+    <string>/usr/local/bin/node</string>
+    <!-- Replace with: absolute path to agent-bus/dist/gateway/index.js -->
+    <string>/path/to/agent-bus/dist/gateway/index.js</string>
+  </array>
+
+  <!-- Working directory — must match repo root -->
+  <key>WorkingDirectory</key>
+  <string>/path/to/agent-bus</string>
+
+  <!-- Environment variables — adjust as needed -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PORT</key>
+    <string>18789</string>
+    <!-- Hub WebSocket URL — use localhost if hub runs on same machine -->
+    <key>HUB_URL</key>
+    <string>ws://localhost:4000</string>
+    <key>NODE_ENV</key>
+    <string>production</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Replace /Users/<yourname> with your actual home directory -->
+  <key>StandardOutPath</key>
+  <string>/Users/<yourname>/Library/Logs/com.agentbus.gateway.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/<yourname>/Library/Logs/com.agentbus.gateway.log</string>
+</dict>
+</plist>

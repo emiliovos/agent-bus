@@ -74,7 +74,7 @@ Claude Code sessions are invisible to external visualization tools. Claw3D only 
 - [x] npm run test:e2e execution verified
 
 **Phase 6 (Complete)**
-- [x] Cloudflare Tunnel setup (agent-bus.boxlab.cloud + claw3d.boxlab.cloud)
+- [x] Cloudflare Tunnel setup (agent-bus.yourdomain.com + claw3d.yourdomain.com)
 - [x] CF Access service tokens (machine-to-machine auth)
 - [x] LaunchAgent auto-start on Mac Mini login
 - [x] Hooks updated with CF Access headers
@@ -86,7 +86,8 @@ Claude Code sessions are invisible to external visualization tools. Claw3D only 
 - [x] ProtocolHandler with 10 RPC methods (connect, agents.list, config.get, etc.)
 - [x] Real-time presence broadcasting (agent list updates)
 - [x] Chat message ring buffer (max 100 per session)
-- [x] 28 gateway tests passing (RPC, translation, presence)
+- [x] 29 gateway tests passing (unit + integration tests)
+- [x] Idle→active lifecycle fix: handleEvent() returns frames[] array
 - [x] No adapter process needed — gateway replaces legacy adapter
 - [x] Working animation latch triggers on tool_use (5s)
 - [x] Live deployment verified on Mac Mini + CF tunnel

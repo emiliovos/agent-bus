@@ -1,8 +1,8 @@
 # Codebase Summary
 
-**Status:** Phase 7 Complete — All phases delivered. Hub, adapter, hooks, CLI, E2E tests, Cloudflare Tunnel, and OpenClaw-compatible gateway deployed.
+**Status:** Phase 7 Complete — 100 tests passing (38 hub + 40 adapter + 22 gateway).
 
-**Last Updated:** 2026-03-22
+**Last Updated:** 2026-03-22 | Key fix: handleEvent() returns frames[] for idle→active Claw3D lifecycle
 
 ## File Tree
 
@@ -97,7 +97,7 @@ agent-bus/
 | `src/gateway/agent-bus-gateway.ts` | ✓ Complete (Phase 7) | 169 | WS server :18789, hub consumer, event forwarding |
 | `src/gateway/protocol-handler.ts` | ✓ Complete (Phase 7) | 162 | 10 RPC methods (connect, agents.list, config.get, etc.) |
 | `src/gateway/agent-registry.ts` | ✓ Complete (Phase 7) | 132 | In-memory agent/session state, ring buffer messages |
-| `tests/gateway.test.ts` | ✓ Complete (Phase 7) | 294 | 28 gateway tests (RPC, translation, presence) |
+| `tests/gateway.test.ts` | ✓ Complete (Phase 7) | 294 | 22 gateway tests (registry, RPC, integration) |
 
 ## Core Components (Phase 1)
 
@@ -152,9 +152,9 @@ agent-bus/
   - SIGINT/SIGTERM shutdown handlers
   - Fails fast if token missing
 
-## Test Coverage (70 tests)
+## Test Coverage (100 tests passing)
 
-**Phase 1 Hub (31 tests):**
+**Phase 1 Hub (38 tests):**
 ✓ POST /events accepts valid events (200 OK)
 ✓ Rejects invalid JSON (400)
 ✓ Rejects invalid schema (400)
@@ -166,22 +166,23 @@ agent-bus/
 ✓ JSONL log contains events in correct format
 ✓ Graceful shutdown closes all connections
 
-**Phase 2 Adapter (39 tests):**
-✓ Derives deterministic runId from agent+project
-✓ Formats sessionKey correctly
-✓ Builds connect frame with auth token
-✓ Translates session_start→agent lifecycle event
-✓ Translates tool_use→chat event with tool info
-✓ Translates task_complete→chat event (final state)
-✓ Translates session_end→agent lifecycle event
-✓ Filters heartbeat events (returns null)
-✓ Connects to hub and Claw3D simultaneously
-✓ Validates hub messages before forwarding
-✓ Waits for Claw3D auth response before sending events
-✓ Rejects invalid connect response
-✓ Auto-reconnects to hub on disconnect
-✓ Auto-reconnects to Claw3D on disconnect
-✓ Stops all connections on shutdown
+**Phase 7 Gateway (22 tests):**
+✓ AgentRegistry: agent registration on session_start
+✓ Auto-registration on tool_use without session_start
+✓ Idle→active transitions return frames[] array
+✓ Chat message ring buffer (max 100 per session)
+✓ State version increments on changes
+✓ Agent name derivation (kebab→title case)
+✓ Emoji assignment (hash-based, deterministic)
+✓ Protocol handler: all 10 RPC methods
+✓ RPC validation (rejects non-req types)
+✓ Config.get returns full config for hydration
+✓ Gateway connects to hub
+✓ Browser WebSocket connect handshake
+✓ Hub event flows to browser client
+✓ agents.list reflects hub events
+✓ Rejects messages before connect handshake
+✓ Error responses for unknown methods
 
 ## Core Components (Phase 3 — Hook Integration)
 
@@ -278,8 +279,8 @@ All 7 checks pass with clean hub shutdown.
 ### Cloudflare Tunnel Setup (`scripts/setup-cloudflare-tunnel.sh`, 91 LOC)
 Interactive setup script that:
 - Prompts for Claw3D API token (OpenClaw auth)
-- Configures CF tunnel for agent-bus.boxlab.cloud → :4000
-- Configures CF tunnel for claw3d.boxlab.cloud → :3000
+- Configures CF tunnel for agent-bus.yourdomain.com → :4000
+- Configures CF tunnel for claw3d.yourdomain.com → :3000
 - Creates CF Access policy (service token authentication)
 - Installs/configures LaunchAgent for auto-start on Mac Mini login
 - Updates hook scripts with CF Access headers
@@ -297,17 +298,17 @@ Phase 6 updates:
 
 **Environment Variables:**
 - `CF_ACCESS_SERVICE_TOKEN` — Service token for CF Access policy
-- `HUB_URL` — Remote hub URL (e.g., https://agent-bus.boxlab.cloud)
+- `HUB_URL` — Remote hub URL (e.g., https://agent-bus.yourdomain.com)
 
 ### Cloudflare Config Template (`scripts/cloudflared-config-template.yml`)
 Template for cloudflared configuration:
 ```yaml
 tunnel: agent-bus-<uuid>
-credentials-file: /Users/evtmini/.cloudflare/agent-bus.json
+credentials-file: ~/.cloudflare/agent-bus.json
 ingress:
-  - hostname: agent-bus.boxlab.cloud
+  - hostname: agent-bus.yourdomain.com
     service: http://localhost:4000
-  - hostname: claw3d.boxlab.cloud
+  - hostname: claw3d.yourdomain.com
     service: http://localhost:3000
   - service: http_status:404
 ```
@@ -320,8 +321,8 @@ Mac Mini:
 - Keeps CF tunnel active 24/7
 
 ### Deployment Status
-- **Hub**: https://agent-bus.boxlab.cloud (remote access enabled)
-- **Claw3D**: https://claw3d.boxlab.cloud (remote access enabled)
+- **Hub**: https://agent-bus.yourdomain.com (remote access enabled)
+- **Claw3D**: https://claw3d.yourdomain.com (remote access enabled)
 - **Authentication**: CF Access service tokens (machine-to-machine)
 - **JSONL Logs**: Persisted locally on Mac Mini
 - **Token Cost**: $0 (passive OpenClaw mode, CF tunnel only)

@@ -1,0 +1,10 @@
+node_modules
+claw3d
+cli-anything
+plans
+data
+dist
+*.log
+.env
+.env.*
+!.env.example

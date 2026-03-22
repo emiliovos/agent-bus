@@ -232,11 +232,11 @@ Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw frames (now 
 ```
 Remote VPS / Windows PC
 ├── Claude Code Session → CF Tunnel HTTPS
-│   └── https://agent-bus.boxlab.cloud/events (POST)
+│   └── https://agent-bus.yourdomain.com/events (POST)
 │       ▼ X-Auth-Service-Token header (CF Access)
 │
-Mac Mini (192.168.101.86)
-├── Cloudflare Tunnel :4000 ↔ agent-bus.boxlab.cloud
+Mac Mini (<your-lan-ip>)
+├── Cloudflare Tunnel :4000 ↔ agent-bus.yourdomain.com
 │   └── LaunchAgent auto-starts on login
 │       └── cloudflared → CF credentials
 │
@@ -258,7 +258,7 @@ Mac Mini (192.168.101.86)
 │   ├── Renders agents based on presence events
 │   ├── Displays chat history from ring buffer
 │   └── Working animation latch on tool_use
-│   └── Cloudflare Tunnel :3000 ↔ claw3d.boxlab.cloud (visual only)
+│   └── Cloudflare Tunnel :3000 ↔ claw3d.yourdomain.com (visual only)
 │
 └── JSONL Log             data/          ← Event persistence (local filesystem)
     └── events.jsonl                     ← Append-only event stream
@@ -404,8 +404,8 @@ Interactive script:
 ### Deployment Endpoints
 | Service | Internal | External | Auth |
 |---------|----------|----------|------|
-| Hub | localhost:4000 | https://agent-bus.boxlab.cloud | CF Service Token |
-| Claw3D | localhost:3000 | https://claw3d.boxlab.cloud | CF Service Token |
+| Hub | localhost:4000 | https://agent-bus.yourdomain.com | CF Service Token |
+| Claw3D | localhost:3000 | https://claw3d.yourdomain.com | CF Service Token |
 
 ### Hook Updates (Phase 6)
 `hook-post-tool-use.sh` and `hook-session-event.sh` now include:

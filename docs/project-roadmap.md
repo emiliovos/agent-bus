@@ -111,7 +111,7 @@
 **Goal:** Enable secure remote access via Cloudflare Tunnel + CF Access
 
 **Deliverables:**
-- [x] Cloudflare Tunnel setup (agent-bus.boxlab.cloud + claw3d.boxlab.cloud)
+- [x] Cloudflare Tunnel setup (agent-bus.yourdomain.com + claw3d.yourdomain.com)
 - [x] CF Access service token authentication (machine-to-machine)
 - [x] LaunchAgent for Mac Mini auto-start (persistent uptime)
 - [x] Interactive setup script (`setup-cloudflare-tunnel.sh`)
@@ -125,8 +125,8 @@
 **Cost:** $0 (pure data routing)
 
 **Remote Endpoints:**
-- Hub: https://agent-bus.boxlab.cloud
-- Claw3D: https://claw3d.boxlab.cloud
+- Hub: https://agent-bus.yourdomain.com
+- Claw3D: https://claw3d.yourdomain.com
 
 ---
 
@@ -182,12 +182,11 @@
 
 | Component | Framework | Count | Status |
 |-----------|-----------|-------|--------|
-| Hub (src/hub/) | Vitest | 31 | ✓ All Pass |
-| Adapter (src/adapter/) | Vitest | 39 | ✓ All Pass (deprecated) |
-| Gateway (src/gateway/) | Vitest | 28 | ✓ All Pass (Phase 7) |
-| CLI (cli-anything/) | pytest | 16 | ✓ All Pass |
+| Hub (src/hub/) | Vitest | 38 | ✓ All Pass |
+| Adapter (src/adapter/) | Vitest | 40 | ✓ All Pass (legacy) |
+| Gateway (src/gateway/) | Vitest | 22 | ✓ All Pass (Phase 7) |
 | E2E Pipeline | Bash | 7 | ✓ All Pass |
-| **Total** | **Mixed** | **121** | **✓ 100%** |
+| **Total** | **Vitest + Bash** | **107** | **✓ 100%** |
 
 ---
 
@@ -343,8 +342,8 @@
 - **Deployment:** Mac Mini + CF Tunnel live
 
 ### External Users
-- Can access Claw3D on `https://claw3d.boxlab.cloud` (with CF Access token)
-- Can publish events to hub via `https://agent-bus.boxlab.cloud`
+- Can access Claw3D on `https://claw3d.yourdomain.com` (with CF Access token)
+- Can publish events to hub via `https://agent-bus.yourdomain.com`
 
 ---
 
