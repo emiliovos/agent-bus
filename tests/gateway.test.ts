@@ -136,11 +136,12 @@ describe('Protocol Handler', () => {
     expect(res.ok).toBe(true);
   });
 
-  it('config.get returns error for unknown agent', () => {
+  it('config.get returns empty list for empty registry', () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'config.get', params: { agentId: 'unknown' } }, reg, ctx);
-    expect(res.ok).toBe(false);
-    expect(res.error?.code).toBe('not_found');
+    const res = handleRpc({ type: 'req', id: '1', method: 'config.get', params: {} }, reg, ctx);
+    expect(res.ok).toBe(true);
+    const config = (res.payload as Record<string, unknown>).config as Record<string, unknown>;
+    expect((config.agents as Record<string, unknown[]>).list).toHaveLength(0);
   });
 
   it('sessions.list returns sessions', () => {

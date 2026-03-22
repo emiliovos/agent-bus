@@ -41,7 +41,13 @@ function buildHelloOk(req: RpcRequest, registry: AgentRegistry, ctx: HandlerCont
         presence: registry.getAgents().map((a) => ({
           instanceId: a.id, host: 'agent-bus', version: '1.0', mode: 'cli', reason: 'connect', ts: a.lastSeen,
         })),
-        health: {},
+        health: {
+          agents: registry.getAgents().map((a) => ({
+            agentId: a.id, name: a.identity.name, isDefault: false,
+          })),
+          defaultAgentId: registry.getAgents()[0]?.id ?? 'main',
+        },
+        sessionDefaults: { mainKey: 'main' },
         stateVersion: registry.stateVersion,
         uptimeMs: Date.now() - ctx.startTime,
       },
@@ -70,34 +76,60 @@ export function handleRpc(req: RpcRequest, registry: AgentRegistry, ctx: Handler
     case 'health':
       return ok({ ok: true });
 
-    case 'agents.list':
+    case 'agents.list': {
+      const agents = registry.getAgents();
       return ok({
-        agents: registry.getAgents().map((a) => ({
-          id: a.id, identity: a.identity, status: a.status, project: a.project, runId: a.runId, sessionKey: a.sessionKey,
+        defaultId: agents[0]?.id ?? 'main',
+        mainKey: 'main',
+        agents: agents.map((a) => ({
+          id: a.id, name: a.identity.name, identity: a.identity,
         })),
       });
+    }
 
     case 'config.get': {
-      const agentId = typeof params.agentId === 'string' ? params.agentId : '';
-      const agent = registry.getAgentConfig(agentId);
-      if (!agent) return err('not_found', `Agent not found: ${agentId}`);
+      // Return full config with all agents (Claw3D hydration expects this)
+      const agents = registry.getAgents();
       return ok({
-        config: { agents: { list: [{ id: agent.id, identity: agent.identity }] } },
+        config: {
+          agents: {
+            list: agents.map((a) => ({ id: a.id, identity: a.identity })),
+          },
+        },
         hash: '', exists: true, path: '',
       });
     }
 
-    case 'sessions.list':
+    case 'sessions.list': {
+      let sessions = registry.getSessions();
+      // Filter by agentId if provided (Claw3D hydration calls with agentId)
+      const filterAgent = typeof params.agentId === 'string' ? params.agentId : '';
+      if (filterAgent) sessions = sessions.filter((s) => s.agentId === filterAgent);
+      // Filter by search (sessionKey match)
+      const search = typeof params.search === 'string' ? params.search : '';
+      if (search) sessions = sessions.filter((s) => s.sessionKey === search);
       return ok({
-        sessions: registry.getSessions().map((s) => ({
+        sessions: sessions.map((s) => ({
           key: s.sessionKey, kind: 'main', channel: 'agent-bus',
           sessionId: s.sessionKey, updatedAt: s.messages.at(-1)?.ts ?? s.startedAt,
           displayName: `${s.agentId} (${s.project})`,
         })),
       });
+    }
 
     case 'sessions.preview': {
+      // Claw3D sends { keys: string[] } for batch preview
+      const keys = Array.isArray(params.keys) ? params.keys as string[] : [];
       const sessionKey = typeof params.sessionKey === 'string' ? params.sessionKey : '';
+      if (keys.length > 0) {
+        const sessions = keys.map((k) => ({
+          key: k,
+          messages: registry.getSessionMessages(k).slice(-8).map((m) => ({
+            role: m.role, content: m.content.slice(0, 240), ts: m.ts,
+          })),
+        }));
+        return ok({ sessions });
+      }
       return ok({ messages: registry.getSessionMessages(sessionKey) });
     }
 
