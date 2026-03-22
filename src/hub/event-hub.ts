@@ -137,9 +137,12 @@ export function createEventHub(config: HubConfig) {
     /** Graceful shutdown — close all connections and stop server (5s timeout) */
     close(): Promise<void> {
       return new Promise((resolve) => {
+        let resolved = false;
+        const done = () => { if (!resolved) { resolved = true; resolve(); } };
+
         const timeout = setTimeout(() => {
           server.closeAllConnections();
-          resolve();
+          done();
         }, 5000);
 
         logStream.end();
@@ -149,7 +152,7 @@ export function createEventHub(config: HubConfig) {
         wss.close(() => {
           server.close(() => {
             clearTimeout(timeout);
-            resolve();
+            done();
           });
         });
       });

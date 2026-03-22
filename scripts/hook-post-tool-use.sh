@@ -9,11 +9,14 @@ PROJECT="${AGENT_BUS_PROJECT:-$(basename "$(pwd)")}"
 TOOL="${CLAUDE_TOOL_NAME:-unknown}"
 FILE="${CLAUDE_FILE_PATH:-}"
 
-# Build JSON payload
+# Escape double quotes in values to prevent JSON injection
+escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+PAYLOAD="{\"agent\":\"$(escape "$AGENT")\",\"project\":\"$(escape "$PROJECT")\",\"event\":\"tool_use\",\"tool\":\"$(escape "$TOOL")\"}"
+
+# Append file field only if set
 if [ -n "$FILE" ]; then
-  PAYLOAD="{\"agent\":\"${AGENT}\",\"project\":\"${PROJECT}\",\"event\":\"tool_use\",\"tool\":\"${TOOL}\",\"file\":\"${FILE}\"}"
-else
-  PAYLOAD="{\"agent\":\"${AGENT}\",\"project\":\"${PROJECT}\",\"event\":\"tool_use\",\"tool\":\"${TOOL}\"}"
+  PAYLOAD="${PAYLOAD%\}},\"file\":\"$(escape "$FILE")\"}"
 fi
 
 # POST to hub — 1s timeout, fail silently

@@ -6,9 +6,17 @@
 HUB_URL="${HUB_URL:-http://localhost:4000}"
 AGENT="${AGENT_BUS_AGENT:-$(whoami)}"
 PROJECT="${AGENT_BUS_PROJECT:-$(basename "$(pwd)")}"
-EVENT="${1:-session_start}"
 
-PAYLOAD="{\"agent\":\"${AGENT}\",\"project\":\"${PROJECT}\",\"event\":\"session_${EVENT}\"}"
+# Only allow "start" or "end" — prevent arbitrary event injection
+case "${1:-start}" in
+  start|end) EVENT="session_${1:-start}" ;;
+  *) exit 0 ;;
+esac
+
+# Escape double quotes in values to prevent JSON injection
+escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+PAYLOAD="{\"agent\":\"$(escape "$AGENT")\",\"project\":\"$(escape "$PROJECT")\",\"event\":\"${EVENT}\"}"
 
 curl -s -m 1 -X POST "${HUB_URL}/events" \
   -H "Content-Type: application/json" \
