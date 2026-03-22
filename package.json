@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "dev:all": "node scripts/dev-all.js",
     "dev:adapter": "tsx watch src/adapter/index.ts",
+    "dev:gateway": "tsx watch src/gateway/index.ts",
     "dev:claw3d": "cd claw3d && npm run dev",
     "build": "tsc",
     "build:claw3d": "cd claw3d && npm run build",
