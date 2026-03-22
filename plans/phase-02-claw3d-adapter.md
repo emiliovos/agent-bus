@@ -1,7 +1,7 @@
 # Phase 2 — Claw3D Adapter
 
 **Priority:** P0
-**Status:** Not started
+**Status:** Complete
 **Effort:** ~2h
 **Depends on:** Phase 1
 
@@ -54,16 +54,33 @@ See `docs/system-architecture.md` → Claw3D Protocol Reference
 
 ## Success Criteria
 
-- [ ] Adapter connects to hub + Claw3D
-- [ ] POST event to hub → agent appears in Claw3D 3D office
-- [ ] Agent shows "working" state on tool_use events
-- [ ] Agent shows "idle" after session_end
-- [ ] Auto-reconnects on Claw3D restart
+- [x] Adapter connects to hub + Claw3D
+- [x] POST event to hub → agent appears in Claw3D 3D office
+- [x] Agent shows "working" state on tool_use events
+- [x] Agent shows "idle" after session_end
+- [x] Auto-reconnects on Claw3D restart
 
 ## Todo
 
-- [ ] src/adapter/claw3d-adapter.ts
-- [ ] src/adapter/event-translator.ts
-- [ ] src/adapter/index.ts
-- [ ] tests/adapter.test.ts
-- [ ] Manual test: curl event → see agent in Claw3D
+- [x] src/adapter/claw3d-adapter.ts
+- [x] src/adapter/event-translator.ts
+- [x] src/adapter/index.ts
+- [x] tests/adapter.test.ts
+- [x] Manual test: curl event → see agent in Claw3D
+
+## Completion Notes
+
+**Code Review:** Score 8/10. Critical fixes applied:
+- isValidEvent guard on all hub messages
+- Connect rejection handling + fatal error on missing token
+- Graceful shutdown with 500ms delay
+- Proper error logging for failed Claw3D connections
+
+**Test Results:** 39 adapter tests all passing (39/39). Total project tests: 70/70 (31 hub + 39 adapter).
+
+**Artifacts Completed:**
+- src/adapter/event-translator.ts — Event translation (session_start, tool_use, task_complete, session_end, heartbeat)
+- src/adapter/claw3d-adapter.ts — Dual WS client with auto-reconnect + auth
+- src/adapter/index.ts — Entry point with env config (HUB_URL, CLAW3D_URL, CLAW3D_TOKEN)
+- tests/adapter.test.ts — 39 comprehensive tests
+- package.json updated with dev:adapter script
