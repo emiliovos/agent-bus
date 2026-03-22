@@ -17,7 +17,12 @@ Your AI session → hooks fire → agent-bus → Claw3D renders in 3D
 
 ```bash
 npm install
-npm run dev
+
+# Optional: clone Claw3D for full sandbox (3D visualization on :3000)
+git clone --depth 1 https://github.com/iamlukethedev/Claw3D.git claw3d && cd claw3d && npm install && cd ..
+
+npm run dev        # Hub only (:4000)
+npm run dev:all    # Hub + Claw3D (:4000 + :3000)
 ```
 
 Hub starts on `ws://localhost:4000`. POST events or connect via WebSocket.
