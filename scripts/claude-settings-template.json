@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "bash /path/to/agent-bus/scripts/hook-post-tool-use.sh"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash /path/to/agent-bus/scripts/hook-session-event.sh end"
+      }
+    ]
+  }
+}

@@ -46,17 +46,33 @@ ws.onmessage = (msg) => console.log(JSON.parse(msg.data));
 
 ### Claude Code hook integration
 
-Add to `.claude/settings.json` on any machine:
+1. Copy hook scripts or reference them from your clone:
+
+```bash
+# Set env vars (add to ~/.zshrc or ~/.bashrc)
+export AGENT_BUS_AGENT="my-agent-name"
+export AGENT_BUS_PROJECT="my-project"
+export HUB_URL="http://localhost:4000"  # or remote: http://<tailscale-ip>:4000
+```
+
+2. Merge `scripts/claude-settings-template.json` into your `.claude/settings.json`, updating the path:
 
 ```json
 {
   "hooks": {
     "PostToolUse": [{
-      "command": "curl -s http://localhost:4000/events -d '{\"agent\":\"dev\",\"event\":\"tool_use\",\"tool\":\"$TOOL_NAME\"}'"
+      "type": "command",
+      "command": "bash /path/to/agent-bus/scripts/hook-post-tool-use.sh"
+    }],
+    "Stop": [{
+      "type": "command",
+      "command": "bash /path/to/agent-bus/scripts/hook-session-event.sh end"
     }]
   }
 }
 ```
+
+Hooks fail silently with 1s timeout — they never block Claude Code.
 
 ## Architecture
 
