@@ -34,9 +34,9 @@ describe('deriveRunId', () => {
 });
 
 describe('deriveSessionKey', () => {
-  it('follows agent:<project>-<agent>:main format', () => {
+  it('follows agent:<agentId>:main format', () => {
     const key = deriveSessionKey('dev', 'tickets');
-    expect(key).toBe('agent:tickets-dev:main');
+    expect(key).toBe('agent:dev:main');
   });
 });
 
@@ -64,7 +64,7 @@ describe('translateEvent', () => {
     expect(frame!.payload.stream).toBe('lifecycle');
     expect(frame!.payload.data?.phase).toBe('start');
     expect(frame!.payload.runId).toMatch(/^[0-9a-f]{12}$/);
-    expect(frame!.payload.sessionKey).toBe('agent:tickets-backend-dev:main');
+    expect(frame!.payload.sessionKey).toBe('agent:backend-dev:main');
   });
 
   it('maps session_end to agent lifecycle end', () => {

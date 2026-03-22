@@ -33,9 +33,9 @@ export function deriveRunId(agent: string, project: string): string {
     .slice(0, 12);
 }
 
-/** Generate a sessionKey in Claw3D format: agent:<id>:main */
-export function deriveSessionKey(agent: string, project: string): string {
-  return `agent:${project}-${agent}:main`;
+/** Generate a sessionKey in Claw3D format: agent:<agentId>:main */
+export function deriveSessionKey(agent: string, _project: string): string {
+  return `agent:${agent}:main`;
 }
 
 /** Build the connect request frame required as first message to Claw3D */

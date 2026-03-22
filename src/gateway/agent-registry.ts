@@ -36,6 +36,8 @@ function deriveEmoji(name: string): string {
 }
 
 function deriveName(agentId: string): string {
+  // Keep short — Claw3D label has limited width. Use ID directly if ≤10 chars.
+  if (agentId.length <= 10) return agentId;
   return agentId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
