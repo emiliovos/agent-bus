@@ -1,10 +1,22 @@
 """Backend module for communicating with the Agent Bus hub HTTP+WS API."""
 
 import json
+import os
 import urllib.request
 import urllib.error
 
 DEFAULT_HUB_URL = "http://localhost:4000"
+
+
+def _build_headers() -> dict:
+    """Build request headers, including CF Access tokens if configured."""
+    headers = {"Content-Type": "application/json"}
+    cf_id = os.environ.get("CF_CLIENT_ID", "")
+    cf_secret = os.environ.get("CF_CLIENT_SECRET", "")
+    if cf_id and cf_secret:
+        headers["CF-Access-Client-Id"] = cf_id
+        headers["CF-Access-Client-Secret"] = cf_secret
+    return headers
 
 
 def publish_event(hub_url: str, event: dict) -> dict:
@@ -13,7 +25,7 @@ def publish_event(hub_url: str, event: dict) -> dict:
     req = urllib.request.Request(
         f"{hub_url}/events",
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers=_build_headers(),
         method="POST",
     )
     try:
@@ -28,7 +40,9 @@ def publish_event(hub_url: str, event: dict) -> dict:
 
 def get_health(hub_url: str) -> dict:
     """GET /health from the hub. Returns stats."""
-    req = urllib.request.Request(f"{hub_url}/health", method="GET")
+    headers = _build_headers()
+    headers.pop("Content-Type", None)  # GET doesn't need Content-Type
+    req = urllib.request.Request(f"{hub_url}/health", headers=headers, method="GET")
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return json.loads(resp.read().decode("utf-8"))

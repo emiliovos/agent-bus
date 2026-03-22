@@ -18,6 +18,11 @@ escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
 PAYLOAD="{\"agent\":\"$(escape "$AGENT")\",\"project\":\"$(escape "$PROJECT")\",\"event\":\"${EVENT}\"}"
 
-curl -s -m 1 -X POST "${HUB_URL}/events" \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD" > /dev/null 2>&1 || true
+# Build curl args — add CF auth headers if configured
+CURL_ARGS=(-s -m 1 -X POST "${HUB_URL}/events" -H "Content-Type: application/json")
+if [ -n "${CF_CLIENT_ID:-}" ] && [ -n "${CF_CLIENT_SECRET:-}" ]; then
+  CURL_ARGS+=(-H "CF-Access-Client-Id: ${CF_CLIENT_ID}" -H "CF-Access-Client-Secret: ${CF_CLIENT_SECRET}")
+fi
+CURL_ARGS+=(-d "$PAYLOAD")
+
+curl "${CURL_ARGS[@]}" > /dev/null 2>&1 || true

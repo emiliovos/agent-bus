@@ -1,0 +1,21 @@
+# Cloudflare Tunnel config for Agent Bus
+# Copy to ~/.cloudflared/config.yml and replace placeholders
+#
+# Replace:
+#   TUNNEL_UUID  — from `cloudflared tunnel create agent-bus-hub`
+#   YOUR_DOMAIN  — your Cloudflare-managed domain
+
+tunnel: TUNNEL_UUID
+credentials-file: ~/.cloudflared/TUNNEL_UUID.json
+
+ingress:
+  # Agent Bus Hub
+  - hostname: agent-bus.YOUR_DOMAIN
+    service: http://localhost:4000
+
+  # Claw3D Visualization
+  - hostname: claw3d.YOUR_DOMAIN
+    service: http://localhost:3000
+
+  # Catch-all (required)
+  - service: http_status:404
