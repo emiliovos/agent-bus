@@ -1,18 +1,34 @@
 /**
- * Starts both Agent Bus hub and Claw3D in parallel.
+ * Starts Agent Bus hub + gateway (+ optionally Claw3D) in parallel.
+ * Kills stale tsx watchers first to prevent ghost processes.
+ *
  * Usage: node scripts/dev-all.js
  *
  * - Agent Bus hub on :4000
- * - Claw3D on :3000
+ * - Gateway on :18789
+ * - Claw3D on :3000 (if claw3d/ dir exists)
  */
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+
+// Kill any stale tsx watchers for our entry points
+const stalePatterns = ['tsx.*src/index.ts', 'tsx.*src/gateway/index', 'tsx.*src/adapter/index'];
+for (const pat of stalePatterns) {
+  try { execSync(`pkill -f '${pat}' 2>/dev/null`, { stdio: 'ignore' }); } catch { /* no match is fine */ }
+}
 
 const procs = [
-  { name: 'agent-bus', cmd: 'npx', args: ['tsx', 'watch', 'src/index.ts'], color: '\x1b[36m' },
-  { name: 'claw3d', cmd: 'npm', args: ['run', 'dev'], cwd: 'claw3d', color: '\x1b[35m' },
+  { name: 'hub', cmd: 'npx', args: ['tsx', 'watch', 'src/index.ts'], color: '\x1b[36m' },
+  { name: 'gateway', cmd: 'npx', args: ['tsx', 'watch', 'src/gateway/index.ts'], color: '\x1b[33m' },
 ];
 
+// Include Claw3D only if the directory exists
+if (existsSync('claw3d')) {
+  procs.push({ name: 'claw3d', cmd: 'npm', args: ['run', 'dev'], cwd: 'claw3d', color: '\x1b[35m' });
+}
+
 const reset = '\x1b[0m';
+const children = [];
 
 for (const { name, cmd, args, cwd, color } of procs) {
   const child = spawn(cmd, args, {
@@ -21,6 +37,7 @@ for (const { name, cmd, args, cwd, color } of procs) {
     env: { ...process.env },
   });
 
+  children.push(child);
   const prefix = `${color}[${name}]${reset}`;
 
   child.stdout.on('data', (data) => {
@@ -40,6 +57,10 @@ for (const { name, cmd, args, cwd, color } of procs) {
   });
 }
 
-// Forward SIGINT/SIGTERM to children
-process.on('SIGINT', () => process.exit(0));
-process.on('SIGTERM', () => process.exit(0));
+// Forward signals — kill all children on exit
+function cleanup() {
+  for (const child of children) child.kill();
+  process.exit(0);
+}
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
