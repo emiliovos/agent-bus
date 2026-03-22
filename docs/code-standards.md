@@ -65,8 +65,9 @@ npm run build           # Compile TypeScript to dist/
 npm start               # Run compiled hub (production)
 ```
 
-## Hook Scripts (Phase 3)
+## Hook Scripts (Phase 3 + Phase 6)
 
+### Phase 3 Hooks (Local)
 ```bash
 # Claude Code PostToolUse hook — fires on every tool use
 bash scripts/hook-post-tool-use.sh
@@ -77,9 +78,31 @@ bash scripts/hook-post-tool-use.sh
 bash scripts/hook-session-event.sh [start|end]
   Env: Same as above
   Example: Register session lifecycle events
+```
 
-# Configure hooks in .claude/settings.json
+### Phase 6 Hooks (Remote with CF Access)
+```bash
+# Updated hooks with Cloudflare Access authentication
+bash scripts/hook-post-tool-use.sh
+  Env: HUB_URL, AGENT_BUS_AGENT, AGENT_BUS_PROJECT, CF_ACCESS_SERVICE_TOKEN
+  Example: curl -X POST https://agent-bus.boxlab.cloud/events \
+    -H "X-Auth-Service-Token: $CF_ACCESS_SERVICE_TOKEN" \
+    -d '{...}'
+
+# Same for session event hook
+bash scripts/hook-session-event.sh [start|end]
+  Env: Same as above
+```
+
+### Setup & Configuration
+```bash
+# Interactive Cloudflare Tunnel setup (Phase 6)
+bash scripts/setup-cloudflare-tunnel.sh
+  Sets up CF tunnel, creates Access policy, installs LaunchAgent
+  Creates/updates cloudflared config at ~/.cloudflare/
+
 # Use scripts/claude-settings-template.json as reference
+# Use scripts/cloudflared-config-template.yml for tunnel config
 ```
 
 ## CLI-Anything Commands (Phase 4)
@@ -111,6 +134,9 @@ cli-anything-agent-bus status --json
 - **Phase 3 Hooks**: Gracefully fall back to default env values (localhost:4000, whoami, pwd basename)
 - **Phase 4 CLI**: Validate hub connectivity before executing commands (retry on timeout)
 - **Phase 5 E2E**: Use ephemeral ports (4444) to avoid conflicts with dev server
+- **Phase 6 CF Tunnel**: Validate CF Access token before sending requests (exit with error if missing)
+- **Phase 6 CF Tunnel**: Handle 401 Unauthorized (expired CF token) gracefully
+- **Phase 6 LaunchAgent**: Log errors to ~/Library/Logs/com.cloudflare.cloudflared.log for debugging
 
 ## Testing
 

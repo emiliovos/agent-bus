@@ -1,6 +1,6 @@
 # System Architecture
 
-**Date:** 2026-03-21
+**Date:** 2026-03-22 (Phase 6 Complete — Cloudflare Tunnel Deployed)
 
 ---
 
@@ -223,23 +223,33 @@ Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw frames (now 
 
 ---
 
-## Network Topology (Phase 1 + 2)
+## Network Topology (Phase 6 — Cloudflare Tunnel Deployed)
 
 ```
+Remote VPS / Windows PC
+├── Claude Code Session → CF Tunnel HTTPS
+│   └── https://agent-bus.boxlab.cloud/events (POST)
+│       ▼ X-Auth-Service-Token header (CF Access)
+│
 Mac Mini (192.168.101.86)
+├── Cloudflare Tunnel :4000 ↔ agent-bus.boxlab.cloud
+│   └── LaunchAgent auto-starts on login
+│       └── cloudflared → CF credentials
+│
 ├── Agent Bus Hub         :4000          ← Event hub (src/hub/)
 │   ├── POST /events      (HTTP)         ← Accept events from producers
 │   ├── GET /health       (HTTP)         ← Hub statistics
 │   └── /                 (WebSocket)    ← Broadcast to consumers
 │
-├── Claw3D Adapter        (src/adapter/) ← [Phase 2] Dual WS bridge
+├── Claw3D Adapter        (src/adapter/) ← Dual WS bridge
 │   ├── ◄─ ws://localhost:4000          ← Consume hub events
 │   ├── ─► ws://localhost:3000/api/gateway/ws ← Send Claw3D frames
 │   └── Auto-reconnect on disconnect (3s)
 │
-├── Claw3D Next.js App    :3000          ← 3D visualization (embedded claw3d/)
+├── Claw3D Next.js App    :3000          ← 3D visualization
 │   ├── /api/gateway/ws   (WebSocket)    ← OpenClaw protocol endpoint
 │   └── /office           (UI)           ← 3D office environment
+│   └── Cloudflare Tunnel :3000 ↔ claw3d.boxlab.cloud
 │
 ├── OpenClaw Gateway      :18789         ← Passive mode ($0 tokens)
 │   └── heartbeat ping    (999h)         ← Keep-alive
@@ -247,10 +257,13 @@ Mac Mini (192.168.101.86)
 └── JSONL Log             data/          ← Event persistence (local filesystem)
     └── events.jsonl                     ← Append-only event stream
 
-Remote Producers (VPS, Windows PC, anywhere)
-├── Claude Code PostToolUse hook → POST http://<mac-mini-ip>:4000/events
-├── Cron jobs, scripts → POST http://<mac-mini>:4000/events
-└── Custom dashboards → ws://mac-mini:4000 (subscribe)
+Authentication
+├── CF Access Service Token (machine-to-machine)
+│   └── Bound to specific project/policy
+│   └── Rotates via CF dashboard
+│
+└── OpenClaw Token (embedded in adapter)
+    └── 999-hour passive heartbeat ($0 cost)
 ```
 
 ---
@@ -360,3 +373,57 @@ Validates full pipeline:
 7. GET /health reports 3 events
 
 Uses `set -euo pipefail` for strict error handling. Cleans up temp directory on exit.
+
+---
+
+## Phase 6 — Cloudflare Tunnel & Remote Access
+
+### Architecture
+- **CF Tunnel** bridges Mac Mini :4000 and :3000 to public HTTPS endpoints
+- **CF Access** protects endpoints with service token authentication
+- **LaunchAgent** keeps tunnel alive 24/7 (auto-start on Mac Mini login)
+- **Zero cost** — uses existing CF tunnel quota (passive OpenClaw mode)
+
+### Setup Process
+```bash
+bash scripts/setup-cloudflare-tunnel.sh
+```
+Interactive script:
+1. Prompts for Claw3D API token
+2. Configures CF tunnel for both services
+3. Creates CF Access policy with service token
+4. Installs LaunchAgent for auto-start
+5. Updates hook scripts with CF Access headers
+
+### Deployment Endpoints
+| Service | Internal | External | Auth |
+|---------|----------|----------|------|
+| Hub | localhost:4000 | https://agent-bus.boxlab.cloud | CF Service Token |
+| Claw3D | localhost:3000 | https://claw3d.boxlab.cloud | CF Service Token |
+
+### Hook Updates (Phase 6)
+`hook-post-tool-use.sh` and `hook-session-event.sh` now include:
+```bash
+curl -X POST $HUB_URL/events \
+  -H "X-Auth-Service-Token: $CF_ACCESS_SERVICE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+```
+
+### LaunchAgent Configuration
+```bash
+# Service name
+com.cloudflare.cloudflared
+
+# Keeps cloudflared running on Mac Mini login
+# Configuration: ~/.cloudflare/agent-bus.json
+# Tunnel config: /path/to/agent-bus/scripts/cloudflared-config-template.yml
+```
+
+### Cost Analysis
+| Component | Cost | Notes |
+|-----------|------|-------|
+| CF Tunnel | $0 | Uses existing quota |
+| CF Access | $0 | Service token only |
+| OpenClaw | $0 | Passive mode (999h heartbeat) |
+| **Total** | **$0** | Pure data routing |

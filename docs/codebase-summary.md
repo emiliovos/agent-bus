@@ -1,8 +1,8 @@
 # Codebase Summary
 
-**Status:** Phase 5 Complete — Hub, adapter, hooks, CLI, and E2E tests fully functional
+**Status:** Phase 6 Complete — All phases delivered. Hub, adapter, hooks, CLI, E2E tests, and Cloudflare Tunnel deployed.
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-03-22
 
 ## File Tree
 
@@ -83,6 +83,11 @@ agent-bus/
 | `cli_anything/agent_bus/tests/test_core.py` | ✓ Complete (Phase 4) | — | 16 Python unit tests |
 | `scripts/e2e-smoke-test.sh` | ✓ Complete (Phase 5) | 118 | E2E validation: publish 3 events, check JSONL log, verify health |
 | `npm run test:e2e` | ✓ Complete (Phase 5) | — | E2E smoke test runner, all 7 checks pass |
+| `scripts/setup-cloudflare-tunnel.sh` | ✓ Complete (Phase 6) | 91 | Interactive CF tunnel setup with LaunchAgent |
+| `scripts/hook-post-tool-use.sh` | ✓ Complete (Phase 6) | 30 | Claude Code PostToolUse hook with CF Access auth |
+| `scripts/hook-session-event.sh` | ✓ Complete (Phase 6) | 28 | Session lifecycle hook with CF Access auth |
+| `scripts/cloudflared-config-template.yml` | ✓ Complete (Phase 6) | — | Cloudflare tunnel config template |
+| **Phase 6 Cloudflare Tunnel** | ✓ Complete | — | Remote access via CF tunnel + LaunchAgent auto-start |
 
 ## Core Components (Phase 1)
 
@@ -219,3 +224,56 @@ npm run test:e2e
 ```
 
 All 7 checks pass with clean hub shutdown.
+
+## Core Components (Phase 6 — Cloudflare Tunnel + Remote Access)
+
+### Cloudflare Tunnel Setup (`scripts/setup-cloudflare-tunnel.sh`, 91 LOC)
+Interactive setup script that:
+- Prompts for Claw3D API token (OpenClaw auth)
+- Configures CF tunnel for agent-bus.boxlab.cloud → :4000
+- Configures CF tunnel for claw3d.boxlab.cloud → :3000
+- Creates CF Access policy (service token authentication)
+- Installs/configures LaunchAgent for auto-start on Mac Mini login
+- Updates hook scripts with CF Access headers
+
+**Execution:**
+```bash
+bash scripts/setup-cloudflare-tunnel.sh
+```
+
+### Updated Hooks with CF Access (`scripts/hook-*.sh`)
+Phase 6 updates:
+- `hook-post-tool-use.sh` (30 LOC): Adds CF Access service token header
+- `hook-session-event.sh` (28 LOC): Adds CF Access service token header
+- Both hooks work over CF tunnel with `X-Auth-Service-Token` header
+
+**Environment Variables:**
+- `CF_ACCESS_SERVICE_TOKEN` — Service token for CF Access policy
+- `HUB_URL` — Remote hub URL (e.g., https://agent-bus.boxlab.cloud)
+
+### Cloudflare Config Template (`scripts/cloudflared-config-template.yml`)
+Template for cloudflared configuration:
+```yaml
+tunnel: agent-bus-<uuid>
+credentials-file: /Users/evtmini/.cloudflare/agent-bus.json
+ingress:
+  - hostname: agent-bus.boxlab.cloud
+    service: http://localhost:4000
+  - hostname: claw3d.boxlab.cloud
+    service: http://localhost:3000
+  - service: http_status:404
+```
+
+### LaunchAgent Configuration
+Mac Mini:
+- Service: `com.cloudflare.cloudflared`
+- Location: `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`
+- Auto-starts on login
+- Keeps CF tunnel active 24/7
+
+### Deployment Status
+- **Hub**: https://agent-bus.boxlab.cloud (remote access enabled)
+- **Claw3D**: https://claw3d.boxlab.cloud (remote access enabled)
+- **Authentication**: CF Access service tokens (machine-to-machine)
+- **JSONL Logs**: Persisted locally on Mac Mini
+- **Token Cost**: $0 (passive OpenClaw mode, CF tunnel only)
