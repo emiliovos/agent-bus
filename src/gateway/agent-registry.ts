@@ -48,8 +48,8 @@ export class AgentRegistry {
   private _presenceVersion = 0;
   private _healthVersion = 0;
 
-  /** Process a hub event — returns whether agent list changed + optional chat frame */
-  handleEvent(event: AgentEvent): { agentChanged: boolean; frame: Claw3dEventFrame | null } {
+  /** Process a hub event — returns whether agent list changed + frames to broadcast */
+  handleEvent(event: AgentEvent): { agentChanged: boolean; frames: Claw3dEventFrame[] } {
     const key = `${event.agent}:${event.project}`;
     const runId = deriveRunId(event.agent, event.project);
     const sessionKey = deriveSessionKey(event.agent, event.project);
@@ -69,20 +69,25 @@ export class AgentRegistry {
         this.sessions.set(sessionKey, { sessionKey, agentId: event.agent, project: event.project, startedAt: now, messages: [] });
       }
       this._presenceVersion++;
-      return { agentChanged: true, frame: translateEvent(event) };
+      const frame = translateEvent(event);
+      return { agentChanged: true, frames: frame ? [frame] : [] };
     }
 
     if (event.event === 'session_end') {
       const agent = this.agents.get(key);
       if (agent) { agent.status = 'idle'; agent.lastSeen = now; }
       this._presenceVersion++;
-      return { agentChanged: true, frame: translateEvent(event) };
+      const frame = translateEvent(event);
+      return { agentChanged: true, frames: frame ? [frame] : [] };
     }
 
     if (event.event === 'tool_use' || event.event === 'task_complete') {
-      // Ensure agent exists (auto-register if missed session_start)
-      const wasNew = !this.agents.has(key);
-      if (wasNew) {
+      // Detect idle→active transition (new agent or previously idle)
+      const existing = this.agents.get(key);
+      const wasIdle = !existing || existing.status === 'idle';
+
+      if (!existing) {
+        // Auto-register agent if missed session_start
         this.agents.set(key, {
           id: event.agent,
           identity: { name: deriveName(event.agent), theme: 'coding agent', emoji: deriveEmoji(event.agent) },
@@ -107,17 +112,32 @@ export class AgentRegistry {
         if (session.messages.length > MAX_MESSAGES) session.messages.shift();
       }
 
-      return { agentChanged: wasNew, frame: translateEvent(event) };
+      const frames: Claw3dEventFrame[] = [];
+
+      // Send lifecycle start if transitioning from idle/new → active
+      if (wasIdle) {
+        frames.push({
+          type: 'event',
+          event: 'agent',
+          payload: { runId, sessionKey, stream: 'lifecycle', data: { phase: 'start' } },
+        });
+      }
+
+      // Then send the actual chat frame
+      const chatFrame = translateEvent(event);
+      if (chatFrame) frames.push(chatFrame);
+
+      return { agentChanged: !existing, frames };
     }
 
     // heartbeat — just update lastSeen
     if (event.event === 'heartbeat') {
       const agent = this.agents.get(key);
       if (agent) agent.lastSeen = now;
-      return { agentChanged: false, frame: null };
+      return { agentChanged: false, frames: [] };
     }
 
-    return { agentChanged: false, frame: null };
+    return { agentChanged: false, frames: [] };
   }
 
   getAgents(): AgentInfo[] { return [...this.agents.values()]; }

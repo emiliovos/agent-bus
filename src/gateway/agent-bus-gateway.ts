@@ -63,10 +63,10 @@ export function createGateway(config: GatewayConfig) {
         const parsed: unknown = JSON.parse(data.toString());
         if (!isValidEvent(parsed)) return;
 
-        const { agentChanged, frame } = registry.handleEvent(parsed);
+        const { agentChanged, frames } = registry.handleEvent(parsed);
 
-        // Broadcast translated frame to all Claw3D clients
-        if (frame) broadcast(frame);
+        // Broadcast translated frames to all Claw3D clients
+        for (const frame of frames) broadcast(frame);
 
         // If agent list changed, also broadcast presence update
         if (agentChanged) broadcastPresence();

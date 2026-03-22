@@ -76,18 +76,43 @@ describe('AgentRegistry', () => {
     expect(reg.getSessionMessages('nonexistent')).toEqual([]);
   });
 
-  it('translates tool_use into chat frame', () => {
+  it('translates tool_use into lifecycle start + chat frames (new agent)', () => {
     const reg = new AgentRegistry();
-    const { frame } = reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'tool_use', tool: 'Edit', file: 'auth.ts' });
-    expect(frame).not.toBeNull();
-    expect(frame!.event).toBe('chat');
-    expect(frame!.payload.message).toBe('Using Edit on auth.ts');
+    const { frames } = reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'tool_use', tool: 'Edit', file: 'auth.ts' });
+    // New agent → lifecycle start + chat frame
+    expect(frames).toHaveLength(2);
+    expect(frames[0].event).toBe('agent');
+    expect(frames[0].payload.data?.phase).toBe('start');
+    expect(frames[1].event).toBe('chat');
+    expect(frames[1].payload.message).toBe('Using Edit on auth.ts');
   });
 
-  it('returns null frame for heartbeat', () => {
+  it('sends only chat frame for already-active agent', () => {
     const reg = new AgentRegistry();
-    const { frame } = reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'heartbeat' });
-    expect(frame).toBeNull();
+    reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'session_start' });
+    const { frames } = reg.handleEvent({ ts: 2000, agent: 'dev', project: 'p', event: 'tool_use', tool: 'Read' });
+    // Already active → only chat frame, no lifecycle start
+    expect(frames).toHaveLength(1);
+    expect(frames[0].event).toBe('chat');
+  });
+
+  it('sends lifecycle start when idle agent resumes', () => {
+    const reg = new AgentRegistry();
+    reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'session_start' });
+    reg.handleEvent({ ts: 2000, agent: 'dev', project: 'p', event: 'session_end' });
+    expect(reg.getAgents()[0].status).toBe('idle');
+    const { frames } = reg.handleEvent({ ts: 3000, agent: 'dev', project: 'p', event: 'tool_use', tool: 'Edit' });
+    // idle→active → lifecycle start + chat frame
+    expect(frames).toHaveLength(2);
+    expect(frames[0].event).toBe('agent');
+    expect(frames[0].payload.data?.phase).toBe('start');
+    expect(frames[1].event).toBe('chat');
+  });
+
+  it('returns empty frames for heartbeat', () => {
+    const reg = new AgentRegistry();
+    const { frames } = reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'heartbeat' });
+    expect(frames).toHaveLength(0);
   });
 });
 
