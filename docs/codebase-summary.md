@@ -1,6 +1,6 @@
 # Codebase Summary
 
-**Status:** Phase 1 Complete — Event hub fully functional
+**Status:** Phase 2 Complete — Hub + Claw3D adapter fully functional
 
 **Last Updated:** 2026-03-21
 
@@ -27,9 +27,13 @@ agent-bus/
 │   │   └── agent-event.ts         ← Event schema + validation
 │   ├── hub/
 │   │   └── event-hub.ts           ← WebSocket + HTTP server (163 LOC)
-│   └── adapter/                   ← Claw3D adapter (Phase 2)
+│   └── adapter/                   ← Claw3D adapter (Phase 2 — IMPLEMENTED)
+│       ├── claw3d-adapter.ts      ← Dual WebSocket bridge (120 LOC)
+│       ├── event-translator.ts    ← AgentEvent → Claw3D frame mapper (110 LOC)
+│       └── index.ts               ← Standalone adapter entry point (24 LOC)
 ├── tests/
-│   └── hub.test.ts                ← 31 passing tests
+│   ├── hub.test.ts                ← 31 passing tests
+│   └── adapter.test.ts            ← 39 passing tests (Phase 2)
 ├── data/                          ← JSONL event logs (runtime, gitignored)
 ├── package.json                   ← Dependencies + dev scripts
 ├── tsconfig.json                  ← TypeScript config
@@ -50,8 +54,11 @@ agent-bus/
 | `tsconfig.json` | ✓ Complete | — | ES2022, strict mode, ESM |
 | `vitest.config.ts` | ✓ Complete | — | Test environment config |
 | `claw3d/` | ✓ Embedded | — | Next.js app ready for adapter integration |
-| `src/adapter/` | Pending (Phase 2) | ~100 | Claw3D protocol translator |
-| CLI-Anything generation | Pending (Phase 2) | Auto | Generated after full integration |
+| `src/adapter/claw3d-adapter.ts` | ✓ Complete | 120 | Dual WebSocket bridge, auto-reconnect on disconnect (3s) |
+| `src/adapter/event-translator.ts` | ✓ Complete | 110 | Maps AgentEvent→Claw3dEventFrame, deterministic runId/sessionKey |
+| `src/adapter/index.ts` | ✓ Complete | 24 | Standalone adapter bootstrap w/ env config |
+| `tests/adapter.test.ts` | ✓ Complete | 200+ | 39 tests: translation logic, connect/auth, reconnect, validation |
+| CLI-Anything generation | Pending (Phase 3) | Auto | Generated after full integration |
 
 ## Core Components (Phase 1)
 
@@ -88,8 +95,27 @@ agent-bus/
 - `vitest` — Test runner
 - `@types/ws`, `@types/node`
 
-## Test Coverage (31 tests)
+## Core Components (Phase 2)
 
+### Claw3D Adapter (`src/adapter/`)
+- **event-translator.ts** (110 LOC): Maps AgentEvent types to Claw3D EventFrames
+  - Deterministic runId (SHA256 hash, 12-char)
+  - sessionKey format: `agent:<project>-<agent>:main`
+  - Handles all event types: session_start→lifecycle, tool_use→chat(delta), task_complete→chat(final), session_end→lifecycle, heartbeat→filtered
+- **claw3d-adapter.ts** (120 LOC): Dual WebSocket bridge
+  - Connects to hub (ws://localhost:4000) and Claw3D (ws://localhost:3000/api/gateway/ws)
+  - Sends connect frame with OpenClaw token first
+  - Validates connect response (ok=true → authenticated)
+  - Auto-reconnect on disconnect (configurable, default 3s)
+  - Input validation via isValidEvent type guard
+- **index.ts** (24 LOC): Standalone adapter bootstrap
+  - Reads env: HUB_URL, CLAW3D_URL, CLAW3D_TOKEN
+  - SIGINT/SIGTERM shutdown handlers
+  - Fails fast if token missing
+
+## Test Coverage (70 tests)
+
+**Phase 1 Hub (31 tests):**
 ✓ POST /events accepts valid events (200 OK)
 ✓ Rejects invalid JSON (400)
 ✓ Rejects invalid schema (400)
@@ -100,3 +126,20 @@ agent-bus/
 ✓ WebSocket broadcasts events to all consumers
 ✓ JSONL log contains events in correct format
 ✓ Graceful shutdown closes all connections
+
+**Phase 2 Adapter (39 tests):**
+✓ Derives deterministic runId from agent+project
+✓ Formats sessionKey correctly
+✓ Builds connect frame with auth token
+✓ Translates session_start→agent lifecycle event
+✓ Translates tool_use→chat event with tool info
+✓ Translates task_complete→chat event (final state)
+✓ Translates session_end→agent lifecycle event
+✓ Filters heartbeat events (returns null)
+✓ Connects to hub and Claw3D simultaneously
+✓ Validates hub messages before forwarding
+✓ Waits for Claw3D auth response before sending events
+✓ Rejects invalid connect response
+✓ Auto-reconnects to hub on disconnect
+✓ Auto-reconnects to Claw3D on disconnect
+✓ Stops all connections on shutdown

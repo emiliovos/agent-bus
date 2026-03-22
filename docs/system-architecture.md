@@ -30,9 +30,16 @@
 ┌──────────────────────────────────────────────────────────┐
 │  Consumers                                                │
 │                                                           │
-│  Claw3D Adapter ──→ ws://localhost:3000/api/gateway/ws   │
-│  Dashboard      ──→ custom UI                            │
-│  CLI subscriber ──→ cli-anything-agent-bus subscribe      │
+│  ┌─────────────────────────────────────────────────┐     │
+│  │ Claw3D Adapter (src/adapter/) [PHASE 2]        │     │
+│  │ Dual WS bridge: hub ↔ Claw3D                   │     │
+│  │ Translates events, manages auth                │     │
+│  └────────────────────────┬────────────────────────┘     │
+│                           │ OpenClaw frames              │
+│                           ▼                              │
+│  Claw3D 3D Office ──→ ws://localhost:3000/api/gateway/ws │
+│  Dashboard ──────────→ custom UI                         │
+│  CLI subscriber ─────→ cli-anything-agent-bus subscribe  │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -40,7 +47,7 @@
 
 ## Components
 
-### 1. Hub (`src/hub/event-hub.ts`) — PHASE 1 COMPLETE
+### 1. Hub (`src/hub/event-hub.ts`) — Phase 1 Complete
 
 HTTP + WebSocket event hub. 163 LOC.
 
@@ -59,7 +66,7 @@ HTTP + WebSocket event hub. 163 LOC.
 4. Broadcast to all WebSocket clients
 5. Append to JSONL log
 
-### 2. Types (`src/types/agent-event.ts`) — PHASE 1 COMPLETE
+### 2. Types (`src/types/agent-event.ts`) — Phase 1 Complete
 
 Shared TypeScript interfaces and validation.
 
@@ -79,22 +86,54 @@ interface AgentEvent {
 function isValidEvent(data: unknown): data is AgentEvent
 ```
 
-### 3. Claw3D Integration (`claw3d/`) — EMBEDDED
+### 3. Claw3D Adapter (`src/adapter/`) — PHASE 2 COMPLETE
 
-Claw3D visualization engine now embedded in project directory.
+Bridges agent-bus hub events to Claw3D's WebSocket protocol. Three modules:
+
+**event-translator.ts (110 LOC):**
+- Derives deterministic runId (SHA256 hash of agent:project, 12-char prefix)
+- Formats sessionKey as `agent:<project>-<agent>:main`
+- Maps AgentEvent → Claw3dEventFrame:
+  - `session_start` → agent lifecycle event (phase: start)
+  - `tool_use` → chat event (state: delta, message: tool + file)
+  - `task_complete` → chat event (state: final, message)
+  - `session_end` → agent lifecycle event (phase: end)
+  - `heartbeat` → filtered (returns null)
+
+**claw3d-adapter.ts (120 LOC):**
+- Dual WebSocket bridge:
+  - Connects to hub (ws://localhost:4000)
+  - Connects to Claw3D (ws://localhost:3000/api/gateway/ws)
+- Auth flow:
+  1. On Claw3D open → send connect frame with OpenClaw token
+  2. Wait for response { type: 'res', ok: true } to confirm authenticated
+  3. Start forwarding events (only when claw3dConnected=true)
+- Resilience:
+  - Auto-reconnect on hub disconnect (3s delay, configurable)
+  - Auto-reconnect on Claw3D disconnect (3s delay)
+  - Input validation via isValidEvent type guard
+- Error handling: Logs errors, ignores non-JSON frames from Claw3D
+
+**index.ts (24 LOC):**
+- Reads env: HUB_URL, CLAW3D_URL, CLAW3D_TOKEN (required)
+- Instantiates adapter with config
+- SIGINT/SIGTERM handlers for clean shutdown
+- Exits with error if token missing
+
+### 4. Claw3D Integration (`claw3d/`) — EMBEDDED
+
+Claw3D visualization engine embedded in project directory.
 
 **Structure:**
 - `claw3d/server/index.js` — Node.js WebSocket gateway, renders agents
 - `claw3d/src/app/api/gateway/` — OpenClaw protocol endpoints
 - `claw3d/public/office-assets/` — 3D models, textures for office environment
 
-**Phase 2 will add:** Claw3D Adapter (`src/adapter/`) to translate agent-bus events to Claw3D WebSocket protocol.
-
-Current Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw frames.
+Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw frames (now fed by adapter).
 
 ---
 
-## Event Flow (Phase 1 — Hub Complete)
+## Event Flow (Phase 1 + 2 — Hub + Adapter Complete)
 
 ```
 1. Producer publishes event (Claude Code hook, cron, dashboard)
@@ -121,7 +160,7 @@ Current Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw fram
    {"ts":1711065600000,"agent":"dev","project":"tickets","event":"session_start"}
    {"ts":1711065605000,"agent":"dev","project":"tickets","event":"tool_use","tool":"Edit","file":"auth.ts"}
 
-5. Phase 2: Claw3D adapter will consume WebSocket feed and render agents in 3D office
+5. Phase 2: Claw3D adapter consumes WebSocket feed, translates events, authenticates with Claw3D, and renders agents in 3D office
 ```
 
 ---
@@ -176,7 +215,7 @@ Current Claw3D listens on `ws://localhost:3000/api/gateway/ws` for OpenClaw fram
 
 ---
 
-## Network Topology (Phase 1)
+## Network Topology (Phase 1 + 2)
 
 ```
 Mac Mini (192.168.101.86)
@@ -184,6 +223,11 @@ Mac Mini (192.168.101.86)
 │   ├── POST /events      (HTTP)         ← Accept events from producers
 │   ├── GET /health       (HTTP)         ← Hub statistics
 │   └── /                 (WebSocket)    ← Broadcast to consumers
+│
+├── Claw3D Adapter        (src/adapter/) ← [Phase 2] Dual WS bridge
+│   ├── ◄─ ws://localhost:4000          ← Consume hub events
+│   ├── ─► ws://localhost:3000/api/gateway/ws ← Send Claw3D frames
+│   └── Auto-reconnect on disconnect (3s)
 │
 ├── Claw3D Next.js App    :3000          ← 3D visualization (embedded claw3d/)
 │   ├── /api/gateway/ws   (WebSocket)    ← OpenClaw protocol endpoint
@@ -199,9 +243,6 @@ Remote Producers (VPS, Windows PC, anywhere)
 ├── Claude Code PostToolUse hook → POST http://<mac-mini-ip>:4000/events
 ├── Cron jobs, scripts → POST http://<mac-mini>:4000/events
 └── Custom dashboards → ws://mac-mini:4000 (subscribe)
-
-Phase 2: Claw3D Adapter
-└── Connects to :4000 (WebSocket) → translates → :3000/api/gateway/ws
 ```
 
 ---
