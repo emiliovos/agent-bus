@@ -119,7 +119,7 @@ describe('AgentRegistry', () => {
 // --- Unit tests: Protocol Handler ---
 
 describe('Protocol Handler', () => {
-  const ctx = { connId: 'ws-0', startTime: Date.now() };
+  const ctx = { connId: 'ws-0', startTime: Date.now(), hubUrl: 'ws://localhost:4000' };
 
   it('isValidRpc rejects non-req types', () => {
     expect(isValidRpc({ type: 'event', id: '1', method: 'x' })).toBe(false);
@@ -131,85 +131,85 @@ describe('Protocol Handler', () => {
     expect(isValidRpc({ type: 'req', id: '1', method: 'health' })).toBe(true);
   });
 
-  it('connect returns hello-ok', () => {
+  it('connect returns hello-ok', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: 'c1', method: 'connect', params: { minProtocol: 2, maxProtocol: 2 } }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: 'c1', method: 'connect', params: { minProtocol: 2, maxProtocol: 2 } }, reg, ctx);
     expect(res.ok).toBe(true);
     expect((res.payload as Record<string, unknown>).type).toBe('hello-ok');
     expect((res.payload as Record<string, unknown>).protocol).toBe(2);
   });
 
-  it('health returns ok', () => {
+  it('health returns ok', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'health' }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'health' }, reg, ctx);
     expect(res.ok).toBe(true);
   });
 
-  it('agents.list returns agents from registry', () => {
+  it('agents.list returns agents from registry', async () => {
     const reg = new AgentRegistry();
     reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'session_start' });
-    const res = handleRpc({ type: 'req', id: '1', method: 'agents.list' }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'agents.list' }, reg, ctx);
     expect(res.ok).toBe(true);
     const agents = (res.payload as Record<string, unknown>).agents as unknown[];
     expect(agents).toHaveLength(1);
   });
 
-  it('config.get returns agent config', () => {
+  it('config.get returns agent config', async () => {
     const reg = new AgentRegistry();
     reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'session_start' });
-    const res = handleRpc({ type: 'req', id: '1', method: 'config.get', params: { agentId: 'dev' } }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'config.get', params: { agentId: 'dev' } }, reg, ctx);
     expect(res.ok).toBe(true);
   });
 
-  it('config.get returns empty list for empty registry', () => {
+  it('config.get returns empty list for empty registry', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'config.get', params: {} }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'config.get', params: {} }, reg, ctx);
     expect(res.ok).toBe(true);
     const config = (res.payload as Record<string, unknown>).config as Record<string, unknown>;
     expect((config.agents as Record<string, unknown[]>).list).toHaveLength(0);
   });
 
-  it('sessions.list returns sessions', () => {
+  it('sessions.list returns sessions', async () => {
     const reg = new AgentRegistry();
     reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'session_start' });
-    const res = handleRpc({ type: 'req', id: '1', method: 'sessions.list' }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'sessions.list' }, reg, ctx);
     const sessions = (res.payload as Record<string, unknown>).sessions as unknown[];
     expect(sessions).toHaveLength(1);
   });
 
-  it('sessions.preview returns messages', () => {
+  it('sessions.preview returns messages', async () => {
     const reg = new AgentRegistry();
     reg.handleEvent({ ts: 1000, agent: 'dev', project: 'p', event: 'session_start' });
     reg.handleEvent({ ts: 2000, agent: 'dev', project: 'p', event: 'tool_use', tool: 'Read' });
     const sessionKey = reg.getSessions()[0].sessionKey;
-    const res = handleRpc({ type: 'req', id: '1', method: 'sessions.preview', params: { sessionKey } }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'sessions.preview', params: { sessionKey } }, reg, ctx);
     const msgs = (res.payload as Record<string, unknown>).messages as unknown[];
     expect(msgs).toHaveLength(1);
   });
 
-  it('exec.approvals.get returns empty', () => {
+  it('exec.approvals.get returns empty', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'exec.approvals.get' }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'exec.approvals.get' }, reg, ctx);
     expect((res.payload as Record<string, unknown>).approvals).toEqual([]);
   });
 
-  it('unknown method returns error', () => {
+  it('unknown method returns error', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'nonexistent' }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'nonexistent' }, reg, ctx);
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('unknown_method');
   });
 
-  it('chat.send returns delivered false', () => {
+  it('chat.send returns not delivered without hub', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'chat.send', params: { sessionKey: 'x', message: 'hi' } }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'chat.send', params: { sessionKey: 'x', message: 'hi' } }, reg, ctx);
     expect(res.ok).toBe(true);
     expect((res.payload as Record<string, unknown>).delivered).toBe(false);
   });
 
-  it('chat.abort returns aborted false', () => {
+  it('chat.abort returns aborted false', async () => {
     const reg = new AgentRegistry();
-    const res = handleRpc({ type: 'req', id: '1', method: 'chat.abort', params: { sessionKey: 'x' } }, reg, ctx);
+    const res = await handleRpc({ type: 'req', id: '1', method: 'chat.abort', params: { sessionKey: 'x' } }, reg, ctx);
     expect(res.ok).toBe(true);
     expect((res.payload as Record<string, unknown>).aborted).toBe(false);
   });

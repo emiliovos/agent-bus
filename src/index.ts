@@ -3,7 +3,9 @@ import { createEventHub } from './hub/event-hub.js';
 const port = parseInt(process.env.PORT || '4000', 10);
 const logDir = process.env.LOG_DIR || 'data';
 
-const hub = createEventHub({ port, logDir });
+const logMaxMb = parseInt(process.env.LOG_MAX_MB || '10', 10);
+
+const hub = createEventHub({ port, logDir, logMaxMb });
 
 await hub.listen();
 console.log(`[agent-bus] listening on ws://0.0.0.0:${port}`);

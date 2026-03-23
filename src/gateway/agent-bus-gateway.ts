@@ -7,6 +7,7 @@ export interface GatewayConfig {
   port: number;        // default 18789
   hubUrl: string;      // default ws://localhost:4000
   reconnectMs?: number; // default 3000
+  pruneHours?: number;  // default 24 — remove agents idle longer than this
 }
 
 interface ClientState {
@@ -25,6 +26,8 @@ export function createGateway(config: GatewayConfig) {
   let stopping = false;
   let nextConnId = 0;
   let tickTimer: ReturnType<typeof setInterval> | null = null;
+  let pruneTimer: ReturnType<typeof setInterval> | null = null;
+  const pruneMaxAgeMs = (config.pruneHours ?? 24) * 60 * 60 * 1000;
 
   // Broadcast a frame to all connected (handshake-complete) clients
   function broadcast(frame: unknown) {
@@ -94,7 +97,7 @@ export function createGateway(config: GatewayConfig) {
     const state: ClientState = { ws, connected: false, connId };
     clients.set(ws, state);
 
-    ws.on('message', (raw: Buffer) => {
+    ws.on('message', async (raw: Buffer) => {
       try {
         const parsed: unknown = JSON.parse(raw.toString());
         if (!isValidRpc(parsed)) {
@@ -109,7 +112,7 @@ export function createGateway(config: GatewayConfig) {
           return;
         }
 
-        const response = handleRpc(parsed, registry, { connId: state.connId, startTime });
+        const response = await handleRpc(parsed, registry, { connId: state.connId, startTime, hubUrl: config.hubUrl });
         ws.send(JSON.stringify(response));
 
         // Mark as connected after successful connect handshake
@@ -140,6 +143,11 @@ export function createGateway(config: GatewayConfig) {
       tickTimer = setInterval(() => {
         broadcast({ type: 'event', event: 'tick', payload: { ts: Date.now() }, seq: Date.now() });
       }, 30000);
+      // Prune idle agents every hour
+      pruneTimer = setInterval(() => {
+        const pruned = registry.pruneIdle(pruneMaxAgeMs);
+        if (pruned > 0) broadcastPresence();
+      }, 60 * 60 * 1000);
       console.log(`[gateway] listening on ws://0.0.0.0:${config.port}`);
     },
 
@@ -148,6 +156,7 @@ export function createGateway(config: GatewayConfig) {
       return new Promise((resolve) => {
         stopping = true;
         if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+        if (pruneTimer) { clearInterval(pruneTimer); pruneTimer = null; }
         if (hubWs) { hubWs.close(); hubWs = null; }
         for (const client of clients.values()) client.ws.close();
         clients.clear();

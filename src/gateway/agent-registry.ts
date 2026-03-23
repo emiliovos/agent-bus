@@ -148,5 +148,24 @@ export class AgentRegistry {
     return undefined;
   }
 
+  /** Remove agents idle longer than maxAgeMs. Returns number of agents pruned. */
+  pruneIdle(maxAgeMs: number): number {
+    const now = Date.now();
+    const toPrune: string[] = [];
+    for (const [key, agent] of this.agents) {
+      if (now - agent.lastSeen > maxAgeMs) toPrune.push(key);
+    }
+    for (const key of toPrune) {
+      const agent = this.agents.get(key);
+      if (agent) {
+        this.sessions.delete(agent.sessionKey);
+        console.log(`[registry] pruned idle agent: ${agent.id} (${agent.project})`);
+      }
+      this.agents.delete(key);
+    }
+    if (toPrune.length > 0) this._presenceVersion++;
+    return toPrune.length;
+  }
+
   get stateVersion() { return { presence: this._presenceVersion, health: this._healthVersion }; }
 }

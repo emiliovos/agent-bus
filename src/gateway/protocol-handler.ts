@@ -18,6 +18,7 @@ export interface RpcResponse {
 interface HandlerContext {
   connId: string;
   startTime: number;
+  hubUrl: string;  // HTTP URL for posting chat messages to hub
 }
 
 const SUPPORTED_METHODS = [
@@ -64,7 +65,7 @@ export function isValidRpc(data: unknown): data is RpcRequest {
 }
 
 /** Route an RPC request to the correct handler and return a response */
-export function handleRpc(req: RpcRequest, registry: AgentRegistry, ctx: HandlerContext): RpcResponse {
+export async function handleRpc(req: RpcRequest, registry: AgentRegistry, ctx: HandlerContext): Promise<RpcResponse> {
   const ok = (payload: unknown): RpcResponse => ({ type: 'res', id: req.id, ok: true, payload });
   const err = (code: string, message: string): RpcResponse => ({ type: 'res', id: req.id, ok: false, error: { code, message } });
   const params = (req.params ?? {}) as Record<string, unknown>;
@@ -145,9 +146,28 @@ export function handleRpc(req: RpcRequest, registry: AgentRegistry, ctx: Handler
 
     case 'chat.send': {
       const sessionKey = typeof params.sessionKey === 'string' ? params.sessionKey.slice(0, 200) : '?';
-      const msg = typeof params.message === 'string' ? params.message.slice(0, 200) : '';
-      console.log(`[gateway] chat.send to ${sessionKey}: ${msg}`);
-      return ok({ ok: true, delivered: false });
+      const msg = typeof params.message === 'string' ? params.message : '';
+      // Extract agent ID from sessionKey (agent:<id>:main → <id>)
+      const agentMatch = sessionKey.match(/^agent:([^:]+):/);
+      const agentId = agentMatch?.[1] ?? 'unknown';
+      const agent = registry.getAgentConfig(agentId);
+      try {
+        const hubHttpUrl = ctx.hubUrl.replace('ws://', 'http://').replace('wss://', 'https://');
+        const res = await fetch(`${hubHttpUrl}/events`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent: agentId,
+            project: agent?.project ?? 'chat',
+            event: 'chat_message',
+            message: msg.slice(0, 1024),
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        return ok({ ok: true, delivered: res.ok });
+      } catch {
+        return ok({ ok: true, delivered: false });
+      }
     }
 
     case 'chat.abort': {

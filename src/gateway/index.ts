@@ -3,7 +3,9 @@ import { createGateway } from './agent-bus-gateway.js';
 const port = parseInt(process.env.GATEWAY_PORT || '18789', 10);
 const hubUrl = process.env.HUB_URL || 'ws://localhost:4000';
 
-const gateway = createGateway({ port, hubUrl });
+const pruneHours = parseInt(process.env.AGENT_PRUNE_HOURS || '24', 10);
+
+const gateway = createGateway({ port, hubUrl, pruneHours });
 gateway.start();
 
 console.log(`[gateway] OpenClaw-compatible gateway on ws://0.0.0.0:${port}`);

@@ -4,7 +4,8 @@ export type EventType =
   | 'session_end'
   | 'tool_use'
   | 'task_complete'
-  | 'heartbeat';
+  | 'heartbeat'
+  | 'chat_message';
 
 /** Core event schema — every event flowing through the bus conforms to this */
 export interface AgentEvent {

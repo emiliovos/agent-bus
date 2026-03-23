@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { createWriteStream, mkdirSync, type WriteStream } from 'node:fs';
+import { createWriteStream, mkdirSync, statSync, renameSync, type WriteStream } from 'node:fs';
 import { join } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { isValidEvent, type AgentEvent } from '../types/agent-event.js';
@@ -13,6 +13,7 @@ const MAX_FIELD_LENGTH = 1024;
 export interface HubConfig {
   port: number;
   logDir: string;
+  logMaxMb?: number;  // default 10 — rotate log at this size
 }
 
 export interface HubStats {
@@ -24,13 +25,29 @@ export interface HubStats {
 /** Core event hub — HTTP + WebSocket server with JSONL logging */
 export function createEventHub(config: HubConfig) {
   let eventCount = 0;
+  const logMaxBytes = (config.logMaxMb ?? 10) * 1024 * 1024;
+  const logFilePath = join(config.logDir, 'events.jsonl');
+  const logBackupPath = join(config.logDir, 'events.jsonl.1');
+  let writesSinceCheck = 0;
 
   // Create log directory and open a write stream (serializes concurrent writes)
   mkdirSync(config.logDir, { recursive: true });
-  const logStream: WriteStream = createWriteStream(
-    join(config.logDir, 'events.jsonl'),
-    { flags: 'a' },
-  );
+  let logStream: WriteStream = createWriteStream(logFilePath, { flags: 'a' });
+
+  // Rotate log if over size limit (check every 100 writes to avoid syscall overhead)
+  function maybeRotateLog() {
+    if (++writesSinceCheck < 100) return;
+    writesSinceCheck = 0;
+    try {
+      const stats = statSync(logFilePath);
+      if (stats.size >= logMaxBytes) {
+        logStream.end();
+        renameSync(logFilePath, logBackupPath);
+        logStream = createWriteStream(logFilePath, { flags: 'a' });
+        console.log(`[agent-bus] log rotated (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
+      }
+    } catch { /* file may not exist yet */ }
+  }
 
   // HTTP request handler
   function handleRequest(req: IncomingMessage, res: ServerResponse) {
@@ -117,6 +134,7 @@ export function createEventHub(config: HubConfig) {
     }
 
     // Append to JSONL log (WriteStream serializes concurrent writes)
+    maybeRotateLog();
     logStream.write(payload + '\n');
 
     res.writeHead(200, { 'Content-Type': 'application/json' });

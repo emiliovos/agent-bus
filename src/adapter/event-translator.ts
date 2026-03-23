@@ -109,8 +109,19 @@ export function translateEvent(event: AgentEvent): Claw3dEventFrame | null {
         },
       };
 
+    case 'chat_message':
+      return {
+        type: 'event',
+        event: 'chat',
+        payload: {
+          runId,
+          sessionKey,
+          state: 'delta',
+          message: event.message ?? '',
+        },
+      };
+
     case 'heartbeat':
-      // Heartbeats don't need to be forwarded to Claw3D
       return null;
 
     default:
