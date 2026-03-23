@@ -34,7 +34,7 @@ npm install
 # Optional: clone Claw3D for full sandbox (3D visualization on :3000)
 git clone --depth 1 https://github.com/iamlukethedev/Claw3D.git claw3d && cd claw3d && npm install && cd ..
 
-npm run dev        # Hub only (:4000)
+npm run dev        # Hub only (:4000, open http://localhost:4000 for dashboard)
 npm run dev:gateway # Gateway only (:18789) — Phase 7
 npm run dev:all    # Hub + Claw3D + Gateway (:4000 + :3000 + :18789)
 ```

@@ -26,7 +26,8 @@ agent-bus/
 │   ├── types/
 │   │   └── agent-event.ts         ← Event schema + validation (48 LOC)
 │   ├── hub/
-│   │   └── event-hub.ts           ← WebSocket + HTTP server (166 LOC)
+│   │   ├── event-hub.ts           ← WebSocket + HTTP server (166 LOC)
+│   │   └── dashboard.ts           ← Live dashboard UI (138 LOC)
 │   ├── adapter/                   ← Claw3D adapter (Phase 2 — IMPLEMENTED)
 │   │   ├── claw3d-adapter.ts      ← Dual WebSocket bridge (83 LOC)
 │   │   ├── event-translator.ts    ← AgentEvent → Claw3D frame mapper (119 LOC)
@@ -80,6 +81,7 @@ agent-bus/
 | `src/adapter/event-translator.ts` | ✓ Complete | 110 | Maps AgentEvent→Claw3dEventFrame, deterministic runId/sessionKey |
 | `src/adapter/index.ts` | ✓ Complete | 24 | Standalone adapter bootstrap w/ env config |
 | `tests/adapter.test.ts` | ✓ Complete | 200+ | 39 tests: translation logic, connect/auth, reconnect, validation |
+| `src/hub/dashboard.ts` | ✓ Complete | 138 | Live dashboard UI: agent cards, event feed, stats bar (dark theme, responsive, zero deps) |
 | `scripts/hook-post-tool-use.sh` | ✓ Complete (Phase 3) | 23 | Claude Code PostToolUse hook, env-configurable, 1s timeout |
 | `scripts/hook-session-event.sh` | ✓ Complete (Phase 3) | — | Claude Code session start/end hook |
 | `scripts/claude-settings-template.json` | ✓ Complete (Phase 3) | — | Hook configuration template for .claude/settings.json |

@@ -1,6 +1,6 @@
 # Project Roadmap
 
-**Status:** All 7 phases complete. Project fully operational with native OpenClaw gateway + remote access.
+**Status:** 7 phases complete + dashboard live. Phase 8 (Claw3D Music Studio integration) planned for next sprint.
 
 **Last Updated:** 2026-03-22
 
@@ -153,6 +153,44 @@
 
 ---
 
+### Phase 8: Live Dashboard ✓ Complete
+
+**Goal:** Real-time web UI for monitoring agent activity and hub statistics
+
+**Deliverables:**
+- [x] Dashboard HTML/CSS/JS served at GET / on hub :4000
+- [x] Real-time agent cards with status, emoji, uptime
+- [x] Event feed showing last 20 events with timestamps
+- [x] Statistics bar (total agents, events, active sessions)
+- [x] Dark theme responsive design
+- [x] Zero external dependencies (vanilla JS)
+
+**Completion Date:** 2026-03-22
+**Status:** DEPLOYED
+
+**Impact:** Visual real-time monitoring of agent activity without external tools or infrastructure
+
+---
+
+### Phase 9: Claw3D Music Studio Integration ⏳ Planned
+
+**Goal:** Extend Claw3D with music studio scene for Claw3D project visualization
+
+**Estimated Effort:** 6 hours across 5 phases
+
+**Key Deliverables:**
+- [ ] Music studio scene (constants, models, UI navigation)
+- [ ] Furniture models (chairs, instruments, equipment)
+- [ ] Event triggers and state machine for agent lifecycle
+- [ ] Agent rendering in music studio with animations
+- [ ] 3D models and asset pipeline
+
+**Status:** PLANNED (plan available at `plans/260322-2243-claw3d-music-studio-room/`)
+
+**Next Steps:** Schedule for upcoming sprint after current phase stabilization
+
+---
+
 ## Feature Status Matrix
 
 | Feature | Phase | Status | Test Coverage |
@@ -175,6 +213,11 @@
 | Agent Registry | 7 | ✓ | 28 tests |
 | RPC Protocol Handler | 7 | ✓ | 28 tests |
 | Presence Broadcasting | 7 | ✓ | 28 tests |
+| Live Dashboard | 8 | ✓ | Manual (HTTP) |
+| Dashboard Agent Cards | 8 | ✓ | Real-time rendering |
+| Dashboard Event Feed | 8 | ✓ | JSONL event stream |
+| Dashboard Stats Bar | 8 | ✓ | Hub health metrics |
+| Music Studio Plan | 9 | ⏳ | Planned |
 
 ---
 
@@ -185,8 +228,9 @@
 | Hub (src/hub/) | Vitest | 38 | ✓ All Pass |
 | Adapter (src/adapter/) | Vitest | 40 | ✓ All Pass (legacy) |
 | Gateway (src/gateway/) | Vitest | 22 | ✓ All Pass (Phase 7) |
+| Dashboard (manual) | HTTP GET | 1 | ✓ Live on :4000 (Phase 8) |
 | E2E Pipeline | Bash | 7 | ✓ All Pass |
-| **Total** | **Vitest + Bash** | **107** | **✓ 100%** |
+| **Total** | **Vitest + Bash + HTTP** | **108** | **✓ 100%** |
 
 ---
 
@@ -235,8 +279,10 @@
 - [ ] Event replay with speed control (future: playback UI)
 - [ ] Multi-producer load testing (future: stress test)
 - [ ] Database persistence (future: PostgreSQL logging)
-- [ ] Web UI dashboard (future: real-time charts)
 - [ ] Kubernetes deployment (future: cloud-native)
+
+### Completed Items (Previously Future Work)
+- [x] Web UI dashboard (Phase 8: real-time agent cards + event feed)
 
 ### Known Issues
 - None. All phases tested and verified.
@@ -330,6 +376,8 @@
 | Phase 5 | 2026-03-21 | 2026-03-21 | ✓ Released |
 | Phase 6 | 2026-03-22 | 2026-03-22 | ✓ Released |
 | Phase 7 | 2026-03-22 | 2026-03-22 | ✓ Released |
+| Phase 8 | 2026-03-22 | 2026-03-22 | ✓ Released |
+| Phase 9 | 2026-03-29 | TBD | ⏳ Planned |
 
 ---
 
