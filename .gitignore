@@ -9,3 +9,7 @@ claw3d/
 *.egg-info/
 __pycache__/
 .pytest_cache/
+plans/
+Users/
+repomix-output.xml
+docs/session-brief-*.md
