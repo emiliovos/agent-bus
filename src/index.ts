@@ -11,6 +11,7 @@ await hub.listen();
 console.log(`[agent-bus] listening on ws://0.0.0.0:${port}`);
 console.log(`[agent-bus] POST http://localhost:${port}/events`);
 console.log(`[agent-bus] GET  http://localhost:${port}/health`);
+console.log(`[agent-bus] dashboard http://localhost:${port}/`);
 
 // Graceful shutdown
 function shutdown() {

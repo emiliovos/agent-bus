@@ -3,6 +3,7 @@ import { createWriteStream, mkdirSync, statSync, renameSync, type WriteStream } 
 import { join } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { isValidEvent, type AgentEvent } from '../types/agent-event.js';
+import { dashboardHtml } from './dashboard.js';
 
 /** Max request body size (1 MB) — prevents memory exhaustion from oversized payloads */
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -59,6 +60,12 @@ export function createEventHub(config: HubConfig) {
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    if (req.method === 'GET' && (req.url === '/' || req.url === '/dashboard')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(dashboardHtml);
       return;
     }
 
